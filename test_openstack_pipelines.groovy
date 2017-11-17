@@ -19,6 +19,8 @@ node('python'){
                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: 'aio_mcp.conf'],
                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: 'cfg01*'],
                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: 'smoke'],
+                [$class: 'StringParameterValue', name: 'HEAT_STACK_ZONE', value: HEAT_STACK_ZONE],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT', value: HEAT_STACK_ZONE],
                 [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
                 [$class: 'StringParameterValue', name: 'STACK_TYPE', value: 'heat'],
                 [$class: 'StringParameterValue', name: 'PROJECT', value: 'nova'],
