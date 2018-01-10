@@ -35,8 +35,13 @@
  *   STACK_RECLASS_ADDRESS             Url to repository with stack salt models
  *   STACK_RECLASS_BRANCH              Branch of repository with stack salt models
  *   TEST_TEMPEST_CONF                 Tempest configuration file path inside container
+ *   TEST_TEMPEST_CONCURRENCY          Tempest tests concurrency
  *   TEST_TEMPEST_TARGET               Salt target for tempest tests
- *   TEST_TEMPEST_PATTERN              Tempest tests pattern
+ *   TEST_TEMPEST_PATTERN              Tempest tests pattern - custom configuration for running
+ *                                     tests, if it is manually set, TEST_TEMPEST_CONCURRENCY will
+ *                                     be ignored, however '--concurrency' setting can be passed as
+ *                                     part of TEST_TEMPEST_PATTERN string parameter, e. g.
+ *                                     TEST_TEMPEST_PATTERN = 'volume --concurrency 5'
  *   TEST_MILESTONE                    MCP version
  *   TEST_MODEL                        Reclass model of environment
  *   TEST_PASS_THRESHOLD               Persent of passed tests to consider build successful
@@ -79,6 +84,8 @@ node(slave_node) {
     }
     def testrail = true
     def test_milestone = ''
+    def test_tempest_concurrency = '2'
+    def test_tempest_pattern = ''
     def stack_deploy_job = "deploy-${STACK_TYPE}-${TEST_MODEL}"
     def deployBuild
     def salt_master_url
@@ -95,6 +102,9 @@ node(slave_node) {
     }
     if (common.validInputParam('STACK_RECLASS_BRANCH')) {
         stack_reclass_branch = STACK_RECLASS_BRANCH
+    }
+    if (common.validInputParam('TEST_TEMPEST_CONCURRENCY')) {
+        test_tempest_concurrency = TEST_TEMPEST_CONCURRENCY
     }
 
     try {
@@ -134,7 +144,11 @@ node(slave_node) {
         }
 
         // setting pattern to run tests
-        def test_tempest_pattern = TEST_TEMPEST_PATTERN ?: get_test_pattern(project)
+        if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
+            test_tempest_pattern = TEST_TEMPEST_PATTERN
+        } else if (get_test_pattern(project)) {
+            test_tempest_pattern = "${get_test_pattern(project)} --concurrency ${test_tempest_concurrency}"
+        }
 
         if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
             bootstrap_extra_repo_params = BOOTSTRAP_EXTRA_REPO_PARAMS
@@ -237,7 +251,9 @@ node(slave_node) {
                 [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: TEST_TEMPEST_CONF],
                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: TEST_TEMPEST_TARGET],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: 'set=smoke --concurrency 2'],
+                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_SET', value: 'smoke'],
+                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONCURRENCY', value: test_tempest_concurrency],
+                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: ''],
                 [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
                 [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: use_pepper],
                 [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
@@ -254,6 +270,8 @@ node(slave_node) {
                     [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
                     [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: TEST_TEMPEST_CONF],
                     [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: TEST_TEMPEST_TARGET],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_SET', value: ''],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONCURRENCY', value: ''],
                     [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: test_tempest_pattern],
                     [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
                     [$class: 'StringParameterValue', name: 'TEST_MODEL', value: TEST_MODEL],
