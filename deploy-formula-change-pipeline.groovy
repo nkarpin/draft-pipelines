@@ -15,6 +15,7 @@
 *    STACK_RECLASS_ADDRESS  Git URL to reclass model to use for deployment.
 *    PKG_BUILD_JOB_NAME     Jenkins job name to build pakages. Default: oscore-ci-build-formula-change
 *    GERRIT_*               Gerrit trigger plugin variables.
+*    TEST_TEMPEST_PATTERN   Tempest tests pattern
 *
 *    There are 2 options to run the pipeline:
 *    1. Manually.
@@ -163,6 +164,11 @@ if (common.validInputParam('SYSTEST_JOB_PREFIX')) {
     systestJobPrefix = SYSTEST_JOB_PREFIX
 }
 
+def test_tempest_pattern = ''
+if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
+    test_tempest_pattern = TEST_TEMPEST_PATTERN
+}
+
 node('python') {
     def aptlyServer = ['url': APTLY_API_URL]
     wrap([$class: 'BuildUser']) {
@@ -245,6 +251,7 @@ node('python') {
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
                                 [$class: 'TextParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: stackDelete],
+                                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: test_tempest_pattern],
                             ]
                         }
                     }
