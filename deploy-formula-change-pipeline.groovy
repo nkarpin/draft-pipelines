@@ -116,6 +116,11 @@ def aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo){
     }
 }
 
+def setGerritBuildString(buildObj){
+    return "* ${buildObj.getProjectName()} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
+}
+
+def messages = ["${env.BUILD_URL}"]
 def common = new com.mirantis.mk.Common()
 def aptly = new com.mirantis.mk.Aptly()
 
@@ -194,6 +199,16 @@ node('python') {
                     [$class: 'StringParameterValue', name: 'SOURCE_URL', value: "${sourceArr[0]}"],
                     [$class: 'StringParameterValue', name: 'SOURCE_REFSPEC', value: "${sourceArr[1]}"],
                 ])
+                /*
+                   Here and further insert elements to the beginning of messages in order to get next gerrit message:
+                   * ChildProjectName1 absoluteUrl : result durationString
+                   * ChildProjectName2 absoluteUrl : result durationString
+                   * ChildProjectName3 absoluteUrl : result durationString
+                   * ChildProjectName1 absoluteUrl : result durationString
+                   * ParentBuildUrl:result
+                */
+                messages.add(0, setGerritBuildString(deployBuild))
+                setGerritReview customUrl: messages.join('\n')
                 if (deployBuild.result == 'SUCCESS'){
                     common.infoMsg("${source} has been build successfully ${deployBuild}")
                 } else {
@@ -265,6 +280,7 @@ node('python') {
                         notToPromote = true
                     }
                     println(k + ': ' + testBuilds[k].result)
+                    messages.add(0, setGerritBuildString(testBuilds[k]))
                 }
             }
             if (notToPromote) {
@@ -275,6 +291,7 @@ node('python') {
         currentBuild.result = 'FAILURE'
         throw e
     } finally {
+        setGerritReview customUrl: messages.join('\n')
         stage('Cleanup Aptly') {
             lock('aptly-api') {
                 aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo)
