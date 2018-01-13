@@ -35,6 +35,12 @@
  *   STACK_RECLASS_ADDRESS             Url to repository with stack salt models
  *   STACK_RECLASS_BRANCH              Branch of repository with stack salt models
  *   TEST_TEMPEST_CONF                 Tempest configuration file path inside container
+ *                                     In case of runtest formula usage:
+ *                                         TEST_TEMPEST_CONF should be align to runtest:tempest:cfg_dir and runtest:tempest:cfg_name pillars and container mounts
+ *                                         Example: tempest config is generated into /root/rally_reports/tempest_generated.conf by runtest state.
+ *                                                  Means /home/rally/rally_reports/tempest_generated.conf on docker tempest system.
+ *                                     In case of predefined tempest config usage:
+ *                                         TEST_TEMPEST_CONF should be a path to predefined tempest config inside container.
  *   TEST_TEMPEST_CONCURRENCY          Tempest tests concurrency
  *   TEST_TEMPEST_TARGET               Salt target for tempest tests
  *   TEST_TEMPEST_PATTERN              Tempest tests pattern - custom configuration for running
