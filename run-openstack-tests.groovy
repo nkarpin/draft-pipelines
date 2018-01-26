@@ -54,9 +54,10 @@ if (common.validInputParam('SLAVE_NODE')) {
 
 node(slave_node) {
 
-    def log_dir = "/home/rally/rally_reports/${PROJECT}/"
-    def reports_dir = "/root/rally_reports/${PROJECT}"
+    def log_dir = '/home/rally/rally_reports/'
+    def reports_dir = '/root/rally_reports/'
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
+    def tempest_log_dir = '/var/log/tempest'
     def testrail = false
     def test_tempest_pattern = ''
     def test_milestone = ''
@@ -93,6 +94,9 @@ node(slave_node) {
                 saltMaster = salt.connection(SALT_MASTER_URL, SALT_MASTER_CREDENTIALS)
             }
         }
+
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.remove', ["${reports_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${reports_dir}"])
 
         stage ('Generate tempest configuration') {
             if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}")) {
@@ -137,6 +141,9 @@ node(slave_node) {
         stage('Archive rally artifacts') {
             test.archiveRallyArtifacts(saltMaster, TEST_TEMPEST_TARGET, reports_dir)
         }
+
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${tempest_log_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.move', ["${reports_dir}", "${tempest_log_dir}/${PROJECT}-${date}"])
 
         stage('Processing results') {
             build(job: PROC_RESULTS_JOB, parameters: [
