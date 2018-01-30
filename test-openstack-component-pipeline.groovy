@@ -51,9 +51,15 @@
  *   TEST_MILESTONE                    MCP version
  *   TEST_MODEL                        Reclass model of environment
  *   TEST_PASS_THRESHOLD               Persent of passed tests to consider build successful
+ *   SALT_MASTER_CREDENTIALS           Credentials to the Salt API
+ *   ARTIFACTORY_CREDENTIALS           Credentials to Artifactory
  *
  **/
 common = new com.mirantis.mk.Common()
+test = new com.mirantis.mk.Test()
+python = new com.mirantis.mk.Python()
+salt = new com.mirantis.mk.Salt()
+
 def artifactoryServer = Artifactory.server('mcp-ci')
 def artifactoryUrl = artifactoryServer.getUrl()
 def salt_overrides_list = SALT_OVERRIDES.tokenize('\n')
@@ -183,6 +189,12 @@ node(slave_node) {
             formula_pkg_revision = FORMULA_PKG_REVISION
         }
 
+        if (common.validInputParam('ARTIFACTORY_CREDENTIALS')){
+            def creds=common.getCredentials(ARTIFACTORY_CREDENTIALS)
+            salt_overrides_list.add("artifactory_user: ${creds.username}")
+            salt_overrides_list.add("artifactory_password: ${creds.password.toString()}")
+        }
+
         if (salt_overrides_list) {
             common.infoMsg("Next salt model parameters will be overriden:\n${salt_overrides_list.join('\n')}")
         }
@@ -294,6 +306,28 @@ node(slave_node) {
         currentBuild.result = build_result
         throw e
     } finally {
+        //
+        // Collect artifacts
+        if (common.validInputParam('SALT_MASTER_CREDENTIALS')){
+            stage ('Collect artifacts') {
+                try{
+                    def saltMaster
+                    if (use_pepper) {
+                        def venv = "${env.WORKSPACE}/pepper-venv-${JOB_NAME}-${BUILD_NUMBER}"
+                        python.setupPepperVirtualenv(venv, salt_master_url, SALT_MASTER_CREDENTIALS, true)
+                        saltMaster = venv
+                    } else {
+                        saltMaster = salt.connection(salt_master_url, SALT_MASTER_CREDENTIALS)
+                    }
+                    if (salt.testTarget(saltMaster, 'I@runtest:artifact_collector')) {
+                        salt.enforceState(saltMaster, 'I@runtest:artifact_collector', ['runtest.artifact_collector'], true)
+                    }
+                } catch (Exception e) {
+                    common.errorMsg("Collect artifact failed\n${e.message}")
+                }
+            }
+        }
+        //
         //
         // Clean
         //
