@@ -11,8 +11,10 @@
  * OPENSTACK_RELEASES           OpenStack releases with comma delimeter which have to be testes. For example: pike,ocata
  * SOURCE_REPO_NAME             Name of the repo where packages are stored. For example: ubuntu-xenial-salt
  * APTLY_API_URL                URL to connect to aptly API. For example: http://172.16.48.254:8084
+ * AUTO_PROMOTE                 True/False promote or not
  **/
 common = new com.mirantis.mk.Common()
+aptly = new com.mirantis.mk.Aptly()
 
 /**
  * Had to override REST functions from pipeline-library here due to 'slashy-string issue'. The issue
@@ -257,14 +259,14 @@ node('python'){
 
     }
 
-    stage('Promotion to testing repo'){
-        if (notToPromote) {
-            common.errorMsg('Snapshot can not be promoted!!!')
-            currentBuild.result = 'FAILURE'
-        } else {
+   stage('Promotion to testing repo'){
+       if (notToPromote) {
+            error('Snapshot can not be promoted!!!')
+       }
+       if (common.validInputParam('AUTO_PROMOTE') && AUTO_PROMOTE.toBoolean() == true) {
             common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshot} will be promoted to testing")
+            aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, '', '', '-d --timeout 1200', '', '')
+       }
+   }
 
-//            aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, '', '', '-d --timeout 1200', '', '')
-        }
-    }
 }
