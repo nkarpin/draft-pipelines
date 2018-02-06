@@ -264,8 +264,10 @@ node('python'){
             error('Snapshot can not be promoted!!!')
        }
        if (common.validInputParam('AUTO_PROMOTE') && AUTO_PROMOTE.toBoolean() == true) {
-            common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshot} will be promoted to testing")
-            aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, '', '', '-d --timeout 1200', '', '')
+            for (prefix in prefixes) {
+                common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshot} will be promoted to testing")
+                aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, '', '', '-d --timeout 1200', '', '')
+            }
        }
    }
 
