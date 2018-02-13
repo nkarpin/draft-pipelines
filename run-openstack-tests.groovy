@@ -44,6 +44,37 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
+/**
+ * Execute stepler tests
+ *
+ * @param dockerImageLink   Docker image link with stepler
+ * @param target            Host to run tests
+ * @param pattern           If not false, will run only tests matched the pattern
+ * @param logDir            Directory to store stepler reports
+ * @param sourceFile        Path to the keystonerc file in the container
+ * @param set               Predefined set for tests
+ * @param skipList          A skip.list's file name
+ * @param localKeystone     Path to the keystonerc file in the local host
+ * @param localLogDir       Path to local destination folder for logs
+ */
+def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/home/stepler/tests_reports/',
+                    set='', sourceFile='/home/stepler/keystonercv3', localLogDir='/root/rally_reports/',
+                    skipList='skip_list_mcp_ocata.yaml', localKeystone='/root/keystonercv3') {
+    def salt = new com.mirantis.mk.Salt()
+    salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
+    def docker_run = "-e SOURCE_FILE=${sourceFile} " +
+                     "-e LOG_DIR=${logDir} " +
+                     "-e TESTS_PATTERN='${testPattern}' " +
+                     "-e SKIP_LIST=${skipList} " +
+                     "-e SET=${set} " +
+                     "-v ${localKeystone}:${sourceFile} " +
+                     "-v ${localLogDir}:${logDir} " +
+                     '-v /etc/ssl/certs/:/etc/ssl/certs/ ' +
+                     "${dockerImageLink} > docker-stepler.log"
+
+    salt.cmdRun(master, "${target}", "docker run --rm --net=host ${docker_run}")
+}
+
 // Define global variables
 def saltMaster
 def slave_node = 'python'
@@ -54,10 +85,14 @@ if (common.validInputParam('SLAVE_NODE')) {
 
 node(slave_node) {
 
+    def test_type = 'tempest'
+    if (common.validInputParam('TEST_TYPE')){
+        test_type = TEST_TYPE
+    }
     def log_dir = '/home/rally/rally_reports/'
     def reports_dir = '/root/rally_reports/'
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
-    def tempest_log_dir = '/var/log/tempest'
+    def test_log_dir = "/var/log/${test_type}"
     def testrail = false
     def test_tempest_pattern = ''
     def test_milestone = ''
@@ -98,14 +133,6 @@ node(slave_node) {
         salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.remove', ["${reports_dir}"])
         salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${reports_dir}"])
 
-        stage ('Generate tempest configuration') {
-            if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}")) {
-                salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}", ['runtest'], true)
-            } else {
-                common.warningMsg('Cannot generate tempest config by runtest salt')
-            }
-        }
-
         if (common.checkContains('TEST_DOCKER_INSTALL', 'true')) {
             test.install_docker(saltMaster, TEST_TEMPEST_TARGET)
         }
@@ -116,34 +143,52 @@ node(slave_node) {
 
         // TODO: implement stepler testing from this pipeline
         stage('Run OpenStack tests') {
-            if (common.validInputParam('TEST_TEMPEST_SET')) {
-                test_tempest_set = TEST_TEMPEST_SET
-                common.infoMsg('TEST_TEMPEST_SET is set, TEST_TEMPEST_PATTERN parameter will be ignored')
-            } else if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
-                test_tempest_pattern = TEST_TEMPEST_PATTERN
-                common.infoMsg('TEST_TEMPEST_PATTERN is set, TEST_TEMPEST_CONCURRENCY and TEST_TEMPEST_SET parameters will be ignored')
-            }
 
-            test.runTempestTests(saltMaster, TEST_TEMPEST_IMAGE,
-                                             TEST_TEMPEST_TARGET,
-                                             test_tempest_pattern,
-                                             log_dir,
-                                             '/home/rally/keystonercv3',
-                                             test_tempest_set,
-                                             test_tempest_concurrency,
-                                             TEST_TEMPEST_CONF)
-            def tempest_stdout
-            tempest_stdout = salt.cmdRun(saltMaster, TEST_TEMPEST_TARGET, "cat ${reports_dir}/report_${test_tempest_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
-            common.infoMsg('Short test report:')
-            common.infoMsg(tempest_stdout)
+            if (test_type == 'stepler'){
+                runSteplerTests(saltMaster, TEST_TEMPEST_IMAGE,
+                    TEST_TEMPEST_TARGET,
+                    TEST_PATTERN,
+                    '/home/stepler/tests_reports/',
+                    TEST_SET,
+                    '/home/stepler/keystonercv3',
+                    reports_dir)
+            } else {
+                if (common.validInputParam('TEST_TEMPEST_SET')) {
+                    test_tempest_set = TEST_TEMPEST_SET
+                    common.infoMsg('TEST_TEMPEST_SET is set, TEST_TEMPEST_PATTERN parameter will be ignored')
+                } else if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
+                    test_tempest_pattern = TEST_TEMPEST_PATTERN
+                    common.infoMsg('TEST_TEMPEST_PATTERN is set, TEST_TEMPEST_CONCURRENCY and TEST_TEMPEST_SET parameters will be ignored')
+                }
+
+                if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}")) {
+                    salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}", ['runtest'], true)
+                } else {
+                    common.warningMsg('Cannot generate tempest config by runtest salt')
+                }
+
+                test.runTempestTests(saltMaster, TEST_TEMPEST_IMAGE,
+                    TEST_TEMPEST_TARGET,
+                    test_tempest_pattern,
+                    log_dir,
+                    '/home/rally/keystonercv3',
+                    test_tempest_set,
+                    test_tempest_concurrency,
+                    TEST_TEMPEST_CONF)
+
+                def tempest_stdout
+                tempest_stdout = salt.cmdRun(saltMaster, TEST_TEMPEST_TARGET, "cat ${reports_dir}/report_${test_tempest_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                common.infoMsg('Short test report:')
+                common.infoMsg(tempest_stdout)
+            }
         }
 
         stage('Archive rally artifacts') {
             test.archiveRallyArtifacts(saltMaster, TEST_TEMPEST_TARGET, reports_dir)
         }
 
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${tempest_log_dir}"])
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.move', ["${reports_dir}", "${tempest_log_dir}/${PROJECT}-${date}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.move', ["${reports_dir}", "${test_log_dir}/${PROJECT}-${date}"])
 
         stage('Processing results') {
             build(job: PROC_RESULTS_JOB, parameters: [
