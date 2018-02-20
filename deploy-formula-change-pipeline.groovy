@@ -221,7 +221,9 @@ node('python') {
                 if (uploadAptly && buildPackage) {
                     stage('upload to Aptly') {
                         def buildSteps = [:]
-                        http.restPost(aptlyServer, '/api/repos', "{\"Name\": \"${aptlyRepo}\"}")
+                        def data = [:]
+                        data['Name'] = "${aptlyRepo}"
+                        http.restPost(aptlyServer, '/api/repos', data)
                         def debFiles = sh script: 'ls *.deb', returnStdout: true
                         for (file in debFiles.tokenize()) {
                         buildSteps[file.split('_')[0]] = aptly.uploadPackageStep(
@@ -235,7 +237,14 @@ node('python') {
                     }
                 }
                 stage('publish to Aptly') {
-                    http.restPost(aptlyServer, "/api/publish/${aptlyPrefix}", "{\"SourceKind\": \"local\", \"Sources\": [{\"Name\": \"${aptlyRepo}\"}], \"Architectures\": [\"amd64\"], \"Distribution\": \"${aptlyRepo}\"}")
+                    def source = [:]
+                    source['Name'] = aptlyRepo
+                    def data = [:]
+                    data['SourceKind'] = 'local'
+                    data['Sources'] = [source]
+                    data['Architectures'] = ['amd64']
+                    data['Distribution'] = aptlyRepo
+                    http.restPost(aptlyServer, "/api/publish/${aptlyPrefix}", data)
                 }
 
                 stage('Creating snapshot from nightly repo'){
