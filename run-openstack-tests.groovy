@@ -147,9 +147,9 @@ node(slave_node) {
             if (test_type == 'stepler'){
                 runSteplerTests(saltMaster, TEST_TEMPEST_IMAGE,
                     TEST_TEMPEST_TARGET,
-                    TEST_PATTERN,
+                    TEST_TEMPEST_PATTERN,
                     '/home/stepler/tests_reports/',
-                    TEST_SET,
+                    '',
                     '/home/stepler/keystonercv3',
                     reports_dir)
             } else {

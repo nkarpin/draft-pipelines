@@ -27,6 +27,7 @@
  *   OPENSTACK_API_CLIENT              Versions of OpenStack python clients
  *   OPENSTACK_API_VERSION             Version of the OpenStack API (2/3)
  *   PROJECT                           Name of project being tested
+ *   RUN_SMOKE                         Enable runing smoke tests
  *   SALT_OVERRIDES                    Override reclass model parameters
  *   STACK_DELETE                      Whether to cleanup created stack
  *   STACK_TEST_JOB                    Job for launching tests
@@ -94,6 +95,10 @@ node(slave_node) {
     if (common.validInputParam('EXTRA_REPO')) {
         extra_repo = EXTRA_REPO
     }
+    def run_smoke = true
+    if (common.validInputParam('RUN_SMOKE')) {
+        run_smoke = RUN_SMOKE.toBoolean()
+    }
     def testrail = true
     def test_milestone = ''
     def test_tempest_concurrency = '2'
@@ -160,6 +165,9 @@ node(slave_node) {
             test_tempest_pattern = TEST_TEMPEST_PATTERN
         } else if (get_test_pattern(project)) {
             test_tempest_pattern = "${get_test_pattern(project)} --concurrency ${test_tempest_concurrency}"
+        }
+        if (!test_tempest_pattern && !run_smoke){
+               error('No RUN_SMOKE and TEST_TEMPEST_PATTERN are set, no tests will be executed')
         }
 
         if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
@@ -263,26 +271,28 @@ node(slave_node) {
         }
 
         // Perform smoke tests to fail early
-        stage('Run Smoke tests') {
-            build(job: STACK_TEST_JOB, parameters: [
-                [$class: 'StringParameterValue', name: 'SLAVE_NODE', value: node_name],
-                [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: TEST_TEMPEST_CONF],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: TEST_TEMPEST_TARGET],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_SET', value: 'smoke'],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONCURRENCY', value: test_tempest_concurrency],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: ''],
-                [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
-                [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: use_pepper],
-                [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
-                [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
-                [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
-            ])
-        }
+        stage('Run tests'){
+            if (run_smoke){
+                common.infoMsg('Running smoke tests')
+                build(job: STACK_TEST_JOB, parameters: [
+                    [$class: 'StringParameterValue', name: 'SLAVE_NODE', value: node_name],
+                    [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: TEST_TEMPEST_CONF],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: TEST_TEMPEST_TARGET],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_SET', value: 'smoke'],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONCURRENCY', value: test_tempest_concurrency],
+                    [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: ''],
+                    [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
+                    [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: use_pepper],
+                    [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
+                    [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
+                    [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
+                ])
+            }
 
-        // Perform project specific tests
-        if (test_tempest_pattern) {
-            stage("Run ${test_tempest_pattern} tests") {
+            // Perform project specific tests
+            if (test_tempest_pattern) {
+                common.infoMsg("Running pattern tests ${test_tempest_pattern}")
                 build(job: STACK_TEST_JOB, parameters: [
                     [$class: 'StringParameterValue', name: 'SLAVE_NODE', value: node_name],
                     [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
