@@ -251,14 +251,14 @@ node('python') {
                     def nightlySnapshot = aptly.getSnapshotByAPI(aptlyServer, 'nightly', 'xenial', components)
                     def snapshotpkglist = aptly.snapshotPackagesByAPI(aptlyServer, nightlySnapshot, OPENSTACK_COMPONENTS_LIST)
 
-                    snapshot = aptly.snapshotCreateByAPI(aptlyServer, SOURCE_REPO_NAME, snapshotpkglist)
-                    common.successMsg("Snapshot ${snapshot} has been created for packages: ${snapshotpkglist}")
+                    aptly.snapshotCreateByAPI(aptlyServer, SOURCE_REPO_NAME, aptlyRepo_nightly, null, snapshotpkglist)
+                    common.successMsg("Snapshot ${aptlyRepo_nightly} has been created for packages: ${snapshotpkglist}")
                 }
 
                 stage('Publishing the snapshot'){
-                    common.infoMsg("Publishing ${snapshot} to ${aptlyRepo_nightly} for prefix ${aptlyPrefix} is started.")
-                    aptly.snapshotPublishByAPI(aptlyServer, snapshot, aptlyRepo_nightly, components, aptlyPrefix)
-                    common.successMsg("Snapshot ${snapshot} has been published for prefix ${aptlyPrefix}")
+                    common.infoMsg("Publishing ${aptlyRepo_nightly} for prefix ${aptlyPrefix} is started.")
+                    aptly.snapshotPublishByAPI(aptlyServer, aptlyRepo_nightly, aptlyRepo_nightly, components, aptlyPrefix)
+                    common.successMsg("Snapshot ${aptlyRepo_nightly} has been published for prefix ${aptlyPrefix}")
                 }
             }
         }
