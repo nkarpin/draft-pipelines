@@ -15,7 +15,7 @@
 *    STACK_RECLASS_ADDRESS        Git URL to reclass model to use for deployment.
 *    PKG_BUILD_JOB_NAME           Jenkins job name to build pakages. Default: oscore-ci-build-formula-change
 *    GERRIT_*                     Gerrit trigger plugin variables.
-*    TEST_TEMPEST_PATTERN         Tempest tests pattern
+*    TEST_PATTERN                 Tempest tests pattern
 *    SOURCE_REPO_NAME             Name of the repo where packages are stored. For example: ubuntu-xenial-salt
 *    OPENSTACK_COMPONENTS_LIST    OpenStack related components list. For example: 'nova,cinder,glance,keystone,horizon,neutron,designate,heat,ironic,barbican'
 *    COMPONENTS                   Components for repo. For example: salt
@@ -146,9 +146,9 @@ if (common.validInputParam('SYSTEST_JOB_PREFIX')) {
     systestJobPrefix = SYSTEST_JOB_PREFIX
 }
 
-def test_tempest_pattern = ''
-if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
-    test_tempest_pattern = TEST_TEMPEST_PATTERN
+def test_pattern = ''
+if (common.validInputParam('TEST_PATTERN')) {
+    test_pattern = TEST_PATTERN
 }
 
 node('python') {
@@ -274,8 +274,8 @@ node('python') {
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
                                 [$class: 'TextParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: stackDelete],
-                                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: test_tempest_pattern],
                                 [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_model],
+                                [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: test_pattern],
                             ]
                         }
                     }

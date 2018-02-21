@@ -28,8 +28,8 @@
  *   STACK_RECLASS_ADDRESS             Url to repository with stack salt models
  *   STACK_RECLASS_BRANCH              Branch of repository with stack salt models
  *   STACK_TYPE                        Environment type (heat, physical, kvm)
- *   TEST_TEMPEST_CONF                 Tempest configuration file path inside container
- *   TEST_TEMPEST_TARGET               Salt target for tempest tests
+ *   TEST_CONF                         Tempest configuration file path inside container
+ *   TEST_TARGET                       Salt target for tempest tests
  *   TEST_MODEL                        Reclass model of environment
  *
  **/
@@ -164,12 +164,12 @@ node('oscore-testing') {
             build(job: STACK_TEST_JOB, parameters: [
                 [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
                 [$class: 'StringParameterValue', name: 'LOCAL_TEMPEST_IMAGE', value: "/tmp/${image_file}"],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_IMAGE', value: "${image_full_name}"],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONF', value: TEST_TEMPEST_CONF],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_TARGET', value: TEST_TEMPEST_TARGET],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_SET', value: 'smoke'],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_CONCURRENCY', value: '2'],
-                [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: ''],
+                [$class: 'StringParameterValue', name: 'TEST_IMAGE', value: "${image_full_name}"],
+                [$class: 'StringParameterValue', name: 'TEST_CONF', value: TEST_CONF],
+                [$class: 'StringParameterValue', name: 'TEST_TARGET', value: TEST_TARGET],
+                [$class: 'StringParameterValue', name: 'TEST_SET', value: 'smoke'],
+                [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: '2'],
+                [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''],
                 [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
                 [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: false],
                 [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],

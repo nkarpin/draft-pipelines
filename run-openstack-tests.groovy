@@ -13,18 +13,18 @@
  *   LOCAL_TEMPEST_IMAGE          Path to docker image tar archive
  *   SALT_MASTER_URL              URL of Salt master
  *   SALT_MASTER_CREDENTIALS      Credentials to the Salt API
- *   TEST_TEMPEST_IMAGE           Docker image to run tempest
- *   TEST_TEMPEST_CONF            Tempest configuration file path inside container
+ *   TEST_IMAGE                   Docker image to run tempest
+ *   TEST_CONF                    Tempest configuration file path inside container
  *                                In case of runtest formula usage:
- *                                    TEST_TEMPEST_CONF should be align to runtest:tempest:cfg_dir and runtest:tempest:cfg_name pillars and container mounts
+ *                                    TEST_CONF should be align to runtest:tempest:cfg_dir and runtest:tempest:cfg_name pillars and container mounts
  *                                    Example: tempest config is generated into /root/rally_reports/tempest_generated.conf by runtest state.
  *                                             Means /home/rally/rally_reports/tempest_generated.conf on docker tempest system.
  *                                In case of predefined tempest config usage:
- *                                    TEST_TEMPEST_CONF should be a path to predefined tempest config inside container.
+ *                                    TEST_CONF should be a path to predefined tempest config inside container
  *   TEST_DOCKER_INSTALL          Install docker
- *   TEST_TEMPEST_TARGET          Salt target to run tempest on
- *   TEST_TEMPEST_PATTERN         Tempest tests pattern
- *   TEST_TEMPEST_CONCURRENCY     How much tempest threads to run
+ *   TEST_TARGET                  Salt target to run tempest on
+ *   TEST_PATTERN                 Tempest tests pattern
+ *   TEST_CONCURRENCY             How much tempest threads to run
  *   TESTRAIL                     Whether upload results to testrail or not
  *   TEST_MILESTONE               Product version for tests
  *   TEST_MODEL                   Salt model used in environment
@@ -94,12 +94,12 @@ node(slave_node) {
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
     def test_log_dir = "/var/log/${test_type}"
     def testrail = false
-    def test_tempest_pattern = ''
+    def test_pattern = ''
     def test_milestone = ''
     def test_model = ''
     def venv = "${env.WORKSPACE}/venv"
-    def test_tempest_concurrency = '0'
-    def test_tempest_set = 'full'
+    def test_concurrency = '0'
+    def test_set = 'full'
     def use_pepper = true
     if (common.validInputParam('USE_PEPPER')){
         use_pepper = USE_PEPPER.toBoolean()
@@ -117,8 +117,8 @@ node(slave_node) {
             }
         }
 
-        if (common.validInputParam('TEST_TEMPEST_CONCURRENCY')) {
-            test_tempest_concurrency = TEST_TEMPEST_CONCURRENCY
+        if (common.validInputParam('TEST_CONCURRENCY')) {
+            test_concurrency = TEST_CONCURRENCY
         }
 
         stage ('Connect to salt master') {
@@ -130,65 +130,65 @@ node(slave_node) {
             }
         }
 
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.remove', ["${reports_dir}"])
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${reports_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
 
         if (common.checkContains('TEST_DOCKER_INSTALL', 'true')) {
-            test.install_docker(saltMaster, TEST_TEMPEST_TARGET)
+            test.install_docker(saltMaster, TEST_TARGET)
         }
 
         if (common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
-            salt.cmdRun(saltMaster, TEST_TEMPEST_TARGET, "docker load --input ${LOCAL_TEMPEST_IMAGE}", true, null, false)
+            salt.cmdRun(saltMaster, TEST_TARGET, "docker load --input ${LOCAL_TEMPEST_IMAGE}", true, null, false)
         }
 
         // TODO: implement stepler testing from this pipeline
         stage('Run OpenStack tests') {
 
             if (test_type == 'stepler'){
-                runSteplerTests(saltMaster, TEST_TEMPEST_IMAGE,
-                    TEST_TEMPEST_TARGET,
-                    TEST_TEMPEST_PATTERN,
+                runSteplerTests(saltMaster, TEST_IMAGE,
+                    TEST_TARGET,
+                    TEST_PATTERN,
                     '/home/stepler/tests_reports/',
                     '',
                     '/home/stepler/keystonercv3',
                     reports_dir)
             } else {
-                if (common.validInputParam('TEST_TEMPEST_SET')) {
-                    test_tempest_set = TEST_TEMPEST_SET
-                    common.infoMsg('TEST_TEMPEST_SET is set, TEST_TEMPEST_PATTERN parameter will be ignored')
-                } else if (common.validInputParam('TEST_TEMPEST_PATTERN')) {
-                    test_tempest_pattern = TEST_TEMPEST_PATTERN
-                    common.infoMsg('TEST_TEMPEST_PATTERN is set, TEST_TEMPEST_CONCURRENCY and TEST_TEMPEST_SET parameters will be ignored')
+                if (common.validInputParam('TEST_SET')) {
+                    test_set = TEST_SET
+                    common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
+                } else if (common.validInputParam('TEST_PATTERN')) {
+                    test_pattern = TEST_PATTERN
+                    common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
                 }
 
-                if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}")) {
-                    salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TEMPEST_TARGET}", ['runtest'], true)
+                if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TARGET}")) {
+                    salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TARGET}", ['runtest'], true)
                 } else {
                     common.warningMsg('Cannot generate tempest config by runtest salt')
                 }
 
-                test.runTempestTests(saltMaster, TEST_TEMPEST_IMAGE,
-                    TEST_TEMPEST_TARGET,
-                    test_tempest_pattern,
+                test.runTempestTests(saltMaster, TEST_IMAGE,
+                    TEST_TARGET,
+                    test_pattern,
                     log_dir,
                     '/home/rally/keystonercv3',
-                    test_tempest_set,
-                    test_tempest_concurrency,
-                    TEST_TEMPEST_CONF)
+                    test_set,
+                    test_concurrency,
+                    TEST_CONF)
 
                 def tempest_stdout
-                tempest_stdout = salt.cmdRun(saltMaster, TEST_TEMPEST_TARGET, "cat ${reports_dir}/report_${test_tempest_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${test_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
                 common.infoMsg('Short test report:')
                 common.infoMsg(tempest_stdout)
             }
         }
 
         stage('Archive rally artifacts') {
-            test.archiveRallyArtifacts(saltMaster, TEST_TEMPEST_TARGET, reports_dir)
+            test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
         }
 
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
-        salt.runSaltProcessStep(saltMaster, TEST_TEMPEST_TARGET, 'file.move', ["${reports_dir}", "${test_log_dir}/${PROJECT}-${date}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
+        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.move', ["${reports_dir}", "${test_log_dir}/${PROJECT}-${date}"])
 
         stage('Processing results') {
             build(job: PROC_RESULTS_JOB, parameters: [
