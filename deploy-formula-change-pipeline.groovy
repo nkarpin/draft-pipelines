@@ -41,6 +41,9 @@ def http = new com.mirantis.mk.Http()
  * @param aptlyRepo  Aptly repo name
  */
 def aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo){
+    def common = new com.mirantis.mk.Common()
+    def aptly = new com.mirantis.mk.Aptly()
+
     try {
         aptly.unpublishByAPI(aptlyServer, aptlyPrefix, aptlyRepo)
     } catch (Exception e) {
