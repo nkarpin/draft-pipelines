@@ -58,6 +58,7 @@
  **/
 common = new com.mirantis.mk.Common()
 test = new com.mirantis.mk.Test()
+openstack = new com.mirantis.mk.Openstack()
 python = new com.mirantis.mk.Python()
 salt = new com.mirantis.mk.Salt()
 
@@ -318,12 +319,44 @@ node(slave_node) {
     } finally {
         //
         // Collect artifacts
-        if (common.validInputParam('SALT_MASTER_CREDENTIALS')){
-            stage ('Collect artifacts') {
-                try{
+        stage ('Collecting artifacts') {
+            try {
+                def os_venv = "${WORKSPACE}/os-venv"
+                def artifacts_dir = '_artifacts/'
+
+                // create openstack env
+                openstack.setupOpenstackVirtualenv(os_venv, OPENSTACK_API_CLIENT)
+                def openstackCloud = openstack.createOpenstackEnv(os_venv,
+                    OPENSTACK_API_URL, OPENSTACK_API_CREDENTIALS,
+                    OPENSTACK_API_PROJECT, OPENSTACK_API_PROJECT_DOMAIN,
+                    OPENSTACK_API_PROJECT_ID, OPENSTACK_API_USER_DOMAIN,
+                    OPENSTACK_API_VERSION)
+                openstack.getKeystoneToken(openstackCloud, os_venv)
+
+                // Get dictionary with ids and names of servers from deployed stack
+                common.infoMsg("Getting servers from stack ${stack_name}")
+                def servers = openstack.getHeatStackServers(openstackCloud, stack_name, os_venv)
+
+                dir(artifacts_dir) {
+                    deleteDir()
+                    for (id in servers.keySet()){
+                        common.infoMsg("Getting console log from server ${servers[id]}")
+                        def l = openstack.runOpenstackCommand("openstack console log show ${id} --lines 20000", openstackCloud, os_venv)
+                        writeFile file: servers[id], text: l
+                    }
+                }
+
+                // TODO: implement upload to artifactory
+                archiveArtifacts artifacts: "${artifacts_dir}/*"
+            } catch (Exception e) {
+                common.errorMsg("Collecting console logs failed\n${e.message}")
+            }
+
+            if (common.validInputParam('SALT_MASTER_CREDENTIALS')){
+                try {
                     def saltMaster
                     if (use_pepper) {
-                        def venv = "${env.WORKSPACE}/pepper-venv-${JOB_NAME}-${BUILD_NUMBER}"
+                        def venv = "${env.WORKSPACE}/pepper-venv-${BUILD_NUMBER}"
                         python.setupPepperVirtualenv(venv, salt_master_url, SALT_MASTER_CREDENTIALS, true)
                         saltMaster = venv
                     } else {
@@ -333,7 +366,7 @@ node(slave_node) {
                         salt.enforceState(saltMaster, 'I@runtest:artifact_collector', ['runtest.artifact_collector'], true)
                     }
                 } catch (Exception e) {
-                    common.errorMsg("Collect artifact failed\n${e.message}")
+                    common.errorMsg("Collecting environment artifacts failed\n${e.message}")
                 }
             }
         }
