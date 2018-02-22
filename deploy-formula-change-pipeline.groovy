@@ -56,6 +56,31 @@ def aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo){
     }
 }
 
+/**
+ * Unpublish and delete snapshot by REST API
+ *
+ * @param aptlyServer Aptly connection object
+ * @param aptlyPrefix Aptly prefix where need to delete a repo
+ * @param aptlyRepo  Aptly repo name
+ */
+def aptlyCleanupSnapshot(aptlyServer, aptlyPrefix, aptlyRepo){
+    def common = new com.mirantis.mk.Common()
+    def aptly = new com.mirantis.mk.Aptly()
+    def http = new com.mirantis.mk.Http()
+
+    try {
+        aptly.unpublishByAPI(aptlyServer, aptlyPrefix, aptlyRepo)
+    } catch (Exception e) {
+        common.warningMsg('Exception during Aptly unpublish. Message: ' + e.toString())
+    }
+    try {
+        http.restDelete(aptlyServer, "api/snapshots/${aptlyRepo}")
+    } catch (Exception e) {
+        common.warningMsg('Exception during snapshot deletion. Message: ' + e.toString())
+    }
+}
+
+
 def setGerritBuildString(buildObj){
     return "* ${buildObj.getProjectName()} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
 }
@@ -264,7 +289,7 @@ node('python') {
         stage('Cleanup Aptly') {
             lock('aptly-api') {
                 aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo)
-                aptlyCleanup(aptlyServer, aptlyPrefix, aptlyRepo_nightly)
+                aptlyCleanupSnapshot(aptlyServer, aptlyPrefix, aptlyRepo_nightly)
             }
         }
     }
