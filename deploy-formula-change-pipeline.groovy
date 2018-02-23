@@ -74,7 +74,7 @@ def aptlyCleanupSnapshot(aptlyServer, aptlyPrefix, aptlyRepo){
         common.warningMsg('Exception during Aptly unpublish. Message: ' + e.toString())
     }
     try {
-        http.restDelete(aptlyServer, "api/snapshots/${aptlyRepo}")
+        http.restDelete(aptlyServer, "/api/snapshots/${aptlyRepo}")
     } catch (Exception e) {
         common.warningMsg('Exception during snapshot deletion. Message: ' + e.toString())
     }
