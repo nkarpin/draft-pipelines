@@ -16,89 +16,91 @@
 common = new com.mirantis.mk.Common()
 aptly = new com.mirantis.mk.Aptly()
 
-node('python'){
-    def server = [
-        'url': APTLY_API_URL,
-    ]
-    def repo = SOURCE_REPO_NAME
-    def components = COMPONENTS
-    def prefixes = ['oscc-dev']
-    def tmp_repo_node_name = TMP_REPO_NODE_NAME
+timeout(time: 6, unit: 'HOURS') {
+    node('oscore-testing'){
+        def server = [
+            'url': APTLY_API_URL,
+        ]
+        def repo = SOURCE_REPO_NAME
+        def components = COMPONENTS
+        def prefixes = ['oscc-dev']
+        def tmp_repo_node_name = TMP_REPO_NODE_NAME
 //    def tmp_repo_node_name = 'apt.mcp.mirantis.net:8085'
 //    def STACK_RECLASS_ADDRESS = 'https://gerrit.mcp.mirantis.net/salt-models/mcp-virtual-aio'
 //    def OPENSTACK_RELEASES = 'ocata,pike'
 //    def OPENSTACK_COMPONENTS_LIST = 'nova,cinder,glance,keystone,horizon,neutron,designate,heat,ironic,barbican'
-    def notToPromote
+        def notToPromote
 //    def DEPLOY_JOB_NAME = 'oscore-MCP1.1-test-release-nightly'
-    def testBuilds = [:]
-    def deploy_release = [:]
-    def snapshotDescription = 'OpenStack Core Components salt formulas CI'
-    def now = new Date()
-    def ts = now.format('yyyyMMddHHmmss', TimeZone.getTimeZone('UTC'))
-    def snapshotName = "os-salt-formulas-${ts}-oscc-dev"
-    def distribution = "${DISTRIBUTION}-${ts}"
+        def testBuilds = [:]
+        def deploy_release = [:]
+        def snapshotDescription = 'OpenStack Core Components salt formulas CI'
+        def now = new Date()
+        def ts = now.format('yyyyMMddHHmmss', TimeZone.getTimeZone('UTC'))
+        def snapshotName = "os-salt-formulas-${ts}-oscc-dev"
+        def distribution = "${DISTRIBUTION}-${ts}"
 
-    lock('aptly-api') {
+        lock('aptly-api') {
 
-        stage('Creating snapshot from nightly repo'){
-            def nightlySnapshot = aptly.getSnapshotByAPI(server, 'nightly', 'xenial', components)
-            def snapshotpkglist = aptly.snapshotPackagesByAPI(server, nightlySnapshot, OPENSTACK_COMPONENTS_LIST)
+            stage('Creating snapshot from nightly repo'){
+                def nightlySnapshot = aptly.getSnapshotByAPI(server, 'nightly', 'xenial', components)
+                def snapshotpkglist = aptly.snapshotPackagesByAPI(server, nightlySnapshot, OPENSTACK_COMPONENTS_LIST)
 
-            snapshot = aptly.snapshotCreateByAPI(server, repo, snapshotName, snapshotDescription, snapshotpkglist)
-            common.successMsg("Snapshot ${snapshotName} has been created for packages: ${snapshotpkglist}")
-        }
-
-        stage('Publishing the snapshots'){
-            for (prefix in prefixes) {
-                common.infoMsg("Publishing ${distribution} for prefix ${prefix} is started.")
-                aptly.snapshotPublishByAPI(server, snapshotName, distribution, components, prefix)
-                common.successMsg("Snapshot ${snapshotName} has been published for prefix ${prefix}")
+                snapshot = aptly.snapshotCreateByAPI(server, repo, snapshotName, snapshotDescription, snapshotpkglist)
+                common.successMsg("Snapshot ${snapshotName} has been created for packages: ${snapshotpkglist}")
             }
-        }
-    }
 
-    stage('Deploying environment and testing'){
-        for (openstack_release in OPENSTACK_RELEASES.tokenize(',')) {
-            def release = openstack_release
-            deploy_release["OpenStack ${release} deployment"] = {
-                node('oscore-testing') {
-                    testBuilds["${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
-                        [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
-                        [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
-                        [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
-                        [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: STACK_RECLASS_ADDRESS],
-                        [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
-                    ]
+            stage('Publishing the snapshots'){
+                for (prefix in prefixes) {
+                    common.infoMsg("Publishing ${distribution} for prefix ${prefix} is started.")
+                    aptly.snapshotPublishByAPI(server, snapshotName, distribution, components, prefix)
+                    common.successMsg("Snapshot ${snapshotName} has been published for prefix ${prefix}")
                 }
             }
         }
-    }
 
-    stage('Running parallel OpenStack deployment') {
-        parallel deploy_release
-    }
-
-    stage('Managing deployment results') {
-        for (k in testBuilds.keySet()) {
-            if (testBuilds[k].result != 'SUCCESS') {
-                notToPromote = true
-                common.errorMsg("${k} : " + testBuilds[k].result)
-            } else {
-                common.successMsg("${k} : " + testBuilds[k].result)
+        stage('Deploying environment and testing'){
+            for (openstack_release in OPENSTACK_RELEASES.tokenize(',')) {
+                def release = openstack_release
+                deploy_release["OpenStack ${release} deployment"] = {
+                    node('oscore-testing') {
+                        testBuilds["${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
+                            [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
+                            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
+                            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
+                            [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: STACK_RECLASS_ADDRESS],
+                            [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
+                        ]
+                    }
+                }
             }
         }
 
-    }
+        stage('Running parallel OpenStack deployment') {
+            parallel deploy_release
+        }
 
-   stage('Promotion to testing repo'){
-       if (notToPromote) {
-            error('Snapshot can not be promoted!!!')
-       }
-       if (common.validInputParam('AUTO_PROMOTE') && AUTO_PROMOTE.toBoolean() == true) {
-            for (prefix in prefixes) {
-                common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshotName} will be promoted to testing")
-                aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, OPENSTACK_COMPONENTS_LIST, '', '-d --timeout 1200', '', '')
+        stage('Managing deployment results') {
+            for (k in testBuilds.keySet()) {
+                if (testBuilds[k].result != 'SUCCESS') {
+                    notToPromote = true
+                    common.errorMsg("${k} : " + testBuilds[k].result)
+                } else {
+                    common.successMsg("${k} : " + testBuilds[k].result)
+                }
             }
+
+        }
+
+       stage('Promotion to testing repo'){
+           if (notToPromote) {
+                error('Snapshot can not be promoted!!!')
+           }
+           if (common.validInputParam('AUTO_PROMOTE') && AUTO_PROMOTE.toBoolean() == true) {
+                for (prefix in prefixes) {
+                    common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshotName} will be promoted to testing")
+                    aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, OPENSTACK_COMPONENTS_LIST, '', '-d --timeout 1200', '', '')
+                }
+           }
        }
-   }
+    }
 }
