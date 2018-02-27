@@ -113,10 +113,24 @@ if (common.validInputParam('STACK_DELETE')) {
 }
 
 def sources
+def test_model = 'virtual_mcp11_aio'
+def openstack_releases = OPENSTACK_RELEASES.tokenize(',')
+
 if (common.validInputParam('SOURCES')) {
     sources = SOURCES
 } else if (common.validInputParam('GERRIT_REFSPEC')) {
-        sources = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT} ${GERRIT_REFSPEC}"
+    sources = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT} ${GERRIT_REFSPEC}"
+    // Choose which salt model and release to test
+    switch (GERRIT_PROJECT.tokenize('/').last()){
+        case ~/manila/:
+            test_model = 'virtual_mcp11_aio_manila'
+            openstack_releases = ['pike']
+            break
+        case ~/aodh|ceilometer|panko|gnocchi/:
+            test_model = 'virtual_mcp11_aio_telemetry'
+            openstack_releases = ['pike']
+            break
+    }
 } else {
     common.errorMsg('SOURCES or GERRIT_* parameters are empty.')
     currentBuild.result = 'FAILURE'
@@ -244,14 +258,14 @@ node('python') {
             }
         }
 
-        if (OPENSTACK_RELEASES) {
+        if (openstack_releases) {
             def deploy_release = [:]
             def testBuilds = [:]
             URI aptlyUri = new URI(APTLY_REPO_URL)
             def aptlyHost = aptlyUri.getHost()
             def extraRepo = "deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo} main,1300,origin ${aptlyHost}; deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo_nightly} main,1200,release n=${aptlyRepo_nightly}"
             stage('Deploying environment and testing'){
-                for (openstack_release in OPENSTACK_RELEASES.tokenize(',')) {
+                for (openstack_release in openstack_releases) {
                     def release = openstack_release
                     deploy_release["OpenStack ${release} deployment"] = {
                         node('oscore-testing') {
@@ -261,6 +275,7 @@ node('python') {
                                 [$class: 'TextParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: stackDelete],
                                 [$class: 'StringParameterValue', name: 'TEST_TEMPEST_PATTERN', value: test_tempest_pattern],
+                                [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_model],
                             ]
                         }
                     }
