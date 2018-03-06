@@ -27,6 +27,13 @@
 common = new com.mirantis.mk.Common()
 test = new com.mirantis.mk.Test()
 
+def test_suite = TEST_SUITE
+
+// Docker run fails if TEST_SUITE has whitespaces
+if (test_suite[0] != "'" && test_suite[-1] != "'"){
+    test_suite = "'${test_suite}'"
+}
+
 node('docker') {
 
     def testOutputDir = sh(script: 'mktemp -d', returnStdout: true).trim()
@@ -60,7 +67,7 @@ node('docker') {
                 sh("docker pull ${TEST_REPORTER_IMAGE}")
 
                 test.uploadResultsTestrail(report, TEST_REPORTER_IMAGE, group, TESTRAIL_QA_CREDENTIALS,
-                    plan, TEST_MILESTONE, TEST_SUITE)
+                    plan, TEST_MILESTONE, test_suite)
             }
         }
 
