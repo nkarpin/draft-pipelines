@@ -160,6 +160,9 @@ node(slave_node) {
                     test_pattern = TEST_PATTERN
                     common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
                 }
+                if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
+                    salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
+                }
 
                 if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TARGET}")) {
                     salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TARGET}", ['runtest'], true)
