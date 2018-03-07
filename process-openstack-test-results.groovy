@@ -27,13 +27,6 @@
 common = new com.mirantis.mk.Common()
 test = new com.mirantis.mk.Test()
 
-def test_suite = TEST_SUITE
-
-// Docker run fails if TEST_SUITE has whitespaces
-if (test_suite[0] != "'" && test_suite[-1] != "'"){
-    test_suite = "'${test_suite}'"
-}
-
 node('docker') {
 
     def testOutputDir = sh(script: 'mktemp -d', returnStdout: true).trim()
@@ -59,6 +52,12 @@ node('docker') {
 
         if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
             stage('Upload tests results to Testrail'){
+                def test_suite = TEST_SUITE
+
+                // Docker run fails if TEST_SUITE has whitespaces
+                if (test_suite[0] != "'" && test_suite[-1] != "'"){
+                    test_suite = "'${test_suite}'"
+                }
 
                 def plan = TEST_PLAN ?: "${TEST_MILESTONE}-OSCORE-${TEST_DATE}"
                 def group = TEST_GROUP ?: "${TEST_MODEL}-${OPENSTACK_VERSION}-nightly"
