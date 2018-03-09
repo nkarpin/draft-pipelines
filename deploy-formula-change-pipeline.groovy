@@ -263,7 +263,7 @@ node('python') {
             def testBuilds = [:]
             URI aptlyUri = new URI(APTLY_REPO_URL)
             def aptlyHost = aptlyUri.getHost()
-            def extraRepo = "deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo} main,1300,origin ${aptlyHost}; deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo_nightly} main,1200,release n=${aptlyRepo_nightly}"
+            def extraRepo = "deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo} main,1300,origin ${aptlyHost}; deb [ arch=amd64 trusted=yes ] ${APTLY_REPO_URL}/${aptlyPrefix} ${aptlyRepo_nightly} ${components},1200,release n=${aptlyRepo_nightly}"
             stage('Deploying environment and testing'){
                 for (openstack_release in openstack_releases) {
                     def release = openstack_release
