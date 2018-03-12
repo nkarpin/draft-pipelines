@@ -103,7 +103,7 @@ node("python") {
     def test_result = true
     stage('Managing deployment results') {
       testBuilds.each {
-        if (it.value != 'SUCCESS') {
+        if (it.value.result != 'SUCCESS') {
           test_result = false
         }
         messages.add(0, setGerritBuildString(it.value, it.key))
