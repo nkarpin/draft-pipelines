@@ -77,6 +77,13 @@ if (common.validInputParam('TEST_TARGET')) {
   testTarget = TEST_TARGET
 }
 
+def stackCleanupJob
+if (common.validInputParam('STACK_CLEANUP_JOB')) {
+  stackCleanupJob = STACK_CLEANUP_JOB
+} else {
+  stackCleanupJob = 'deploy-stack-cleanup'
+}
+
 node("oscore-testing") {
 
   try {
@@ -132,7 +139,7 @@ node("oscore-testing") {
         }
         stage('Trigger cleanup job') {
           common.errorMsg('Stack cleanup job triggered')
-          build(job: STACK_CLEANUP_JOB, parameters: [
+          build(job: stackCleanupJob, parameters: [
             [$class: 'StringParameterValue', name: 'STACK_NAME', value: stackName],
             [$class: 'StringParameterValue', name: 'STACK_TYPE', value: 'heat'],
             [$class: 'StringParameterValue', name: 'OPENSTACK_API_URL', value: OPENSTACK_API_URL],
