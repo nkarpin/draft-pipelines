@@ -9,9 +9,9 @@
 *    STACK_RECLASS_BRANCH         Git branch or ref of cluster model to test.
 *
 *    GERRIT_*                     Gerrit trigger plugin variables.
-*    TEST_CLUSTER_NAMES           Comma separated list of cluster names to test. If set and pipeline is
+*    STACK_CLUSTER_NAMES           Comma separated list of cluster names to test. If set and pipeline is
 *                                 triggered via gerrit than we will find changed cluster model and run
-*                                 tests only when they are present in TEST_CLUSTER_NAMES.
+*                                 tests only when they are present in STACK_CLUSTER_NAMES.
 *                                 If pipeline triggered by timer, we will run all clusters specified in
 *                                 this variable.
 *
@@ -80,14 +80,14 @@ node("oscore-testing") {
     }
   }
 
-  if(common.validInputParam('TEST_CLUSTER_NAMES')){
+  if(common.validInputParam('STACK_CLUSTER_NAMES')){
     if (useGerrit){
-      common.infoMsg("TEST_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
-      common.infoMsg("Checking if we have to run any clusters in ${TEST_CLUSTER_NAMES}")
+      common.infoMsg("STACK_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
+      common.infoMsg("Checking if we have to run any clusters in ${STACK_CLUSTER_NAMES}")
       // TODO: add logic to automatically pick changed mode
     } else {
-      common.infoMsg("Running deploy for ${TEST_CLUSTER_NAMES}")
-      testClusterNames = TEST_CLUSTER_NAMES.tokenize(',')
+      common.infoMsg("Running deploy for ${STACK_CLUSTER_NAMES}")
+      testClusterNames = STACK_CLUSTER_NAMES.tokenize(',')
     }
   }
 
