@@ -105,7 +105,7 @@ node("oscore-testing") {
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
             [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
             [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
-            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE],
+            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
             ]
           }
         }
