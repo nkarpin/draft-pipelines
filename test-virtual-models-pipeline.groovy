@@ -7,6 +7,7 @@
 
 *    STACK_RECLASS_ADDRESS        Git URL to reclass model to use for deployment.
 *    STACK_RECLASS_BRANCH         Git branch or ref of cluster model to test.
+*    STACK_DELETE                 True when delete a stack after failure.
 *
 *    GERRIT_*                     Gerrit trigger plugin variables.
 *    STACK_CLUSTER_NAMES           Comma separated list of cluster names to test. If set and pipeline is
@@ -104,6 +105,7 @@ node("oscore-testing") {
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
             [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
             [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
+            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE],
             ]
           }
         }
