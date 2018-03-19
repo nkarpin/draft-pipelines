@@ -113,7 +113,7 @@ if (common.validInputParam('STACK_DELETE')) {
 }
 
 def sources
-def test_model = 'virtual_mcp11_aio'
+def stack_cluster_name = 'virtual-mcp11-aio'
 def openstack_releases = OPENSTACK_RELEASES.tokenize(',')
 
 if (common.validInputParam('SOURCES')) {
@@ -123,11 +123,11 @@ if (common.validInputParam('SOURCES')) {
     // Choose which salt model and release to test
     switch (GERRIT_PROJECT.tokenize('/').last()){
         case ~/manila/:
-            test_model = 'virtual_mcp11_aio_manila'
+            stack_cluster_name = 'virtual-mcp11-aio-manila'
             openstack_releases = ['pike']
             break
         case ~/aodh|ceilometer|panko|gnocchi/:
-            test_model = 'virtual_mcp11_aio_telemetry'
+            stack_cluster_name = 'virtual-mcp11-aio-telemetry'
             openstack_releases = ['pike']
             break
     }
@@ -274,7 +274,7 @@ node('python') {
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
                                 [$class: 'TextParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: stackDelete],
-                                [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_model],
+                                [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: stack_cluster_name],
                                 [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: test_pattern],
                             ]
                         }
