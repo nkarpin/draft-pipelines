@@ -22,7 +22,7 @@
  *                                In case of predefined tempest config usage:
  *                                    TEST_CONF should be a path to predefined tempest config inside container
  *   TEST_DOCKER_INSTALL          Install docker
- *   TEST_TARGET                  Salt target to run tempest on
+ *   TEST_TARGET                  Salt target to run tempest on e.g. gtw*
  *   TEST_PATTERN                 Tempest tests pattern
  *   TEST_CONCURRENCY             How much tempest threads to run
  *   TESTRAIL                     Whether upload results to testrail or not
@@ -130,6 +130,10 @@ node(slave_node) {
             }
         }
 
+        // Set up test_target parameter on cluster level
+        common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
+        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
+
         salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
         salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
 
@@ -153,6 +157,7 @@ node(slave_node) {
                     '/home/stepler/keystonercv3',
                     reports_dir)
             } else {
+
                 if (common.validInputParam('TEST_SET')) {
                     test_set = TEST_SET
                     common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
@@ -164,8 +169,8 @@ node(slave_node) {
                     salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
                 }
 
-                if (salt.testTarget(saltMaster, "I@runtest:tempest and ${TEST_TARGET}")) {
-                    salt.enforceState(saltMaster, "I@runtest:tempest and ${TEST_TARGET}", ['runtest'], true)
+                if (salt.testTarget(saltMaster, 'I@runtest:tempest and cfg01*')) {
+                    salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest'], true)
                 } else {
                     common.warningMsg('Cannot generate tempest config by runtest salt')
                 }
