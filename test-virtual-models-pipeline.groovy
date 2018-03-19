@@ -97,9 +97,9 @@ node("oscore-testing") {
     def deploy_release = [:]
     for (cluster_name in testClusterNames) {
       def cn = cluster_name
-      deploy_release["Deploy ${cluster_name}"] = {
+      deploy_release["Deploy ${cn}"] = {
         node('oscore-testing') {
-          testBuilds["${cluster_name}"] = build job: systestJob, propagate: false, parameters: [
+          testBuilds["${cn}"] = build job: systestJob, propagate: false, parameters: [
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: gerritUrlAnonymous],
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: gerritRef],
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
