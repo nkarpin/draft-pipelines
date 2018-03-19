@@ -93,9 +93,9 @@ node("python") {
     def release = gerritBranch.tokenize('/').last()
     for (cluster_name in testClusterNames) {
       def cn = cluster_name
-      deploy_release["Deploy ${cluster_name}"] = {
+      deploy_release["Deploy ${cn}"] = {
         node('oscore-testing') {
-          testBuilds["${cluster_name}"] = build job: "${systestJobPrefix}${release}", propagate: false, parameters: [
+          testBuilds["${cn}"] = build job: "${systestJobPrefix}${release}", propagate: false, parameters: [
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: "${gerritUrlAnonymous}"],
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "${gerritRef}"],
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: "${cn}"],
@@ -106,20 +106,28 @@ node("python") {
         }
       }
       parallel deploy_release
-    }
+  }
 
-    def test_result = true
-    stage('Managing deployment results') {
-      testBuilds.each {
-        if (it.value.result != 'SUCCESS') {
-          test_result = false
-        }
+  def success_models = []
+  def failed_models = []
+  stage('Managing deployment results') {
+    testBuilds.each {
+      if (it.value.result != 'SUCCESS') {
+        failed_models.add("${it.key}: ${it.value.result}")
+      } else {
+        success_models.add("${it.key}: ${it.value.result}")
+      }
+      if (useGerrit){
         messages.add(0, setGerritBuildString(it.value, it.key))
         setGerritReview customUrl: messages.join('\n')
       }
     }
-
-  if (!test_result) {
+  }
+  if(success_models){
+    common.successMsg(success_models.join('/n'))
+  }
+  if (failed_models) {
+    common.errorMsg(failed_models.join('/n'))
     error('Some of deploy jobs failed')
   }
 }
