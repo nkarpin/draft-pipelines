@@ -30,6 +30,7 @@
  *   RUN_SMOKE                         Enable runing smoke tests
  *   SALT_OVERRIDES                    Override reclass model parameters
  *   STACK_DELETE                      Whether to cleanup created stack
+ *   STACK_CLUSTER_NAME                Name of the deployed salt model cluster
  *   STACK_TEST_JOB                    Job for launching tests
  *   STACK_TYPE                        Environment type (heat, physical, kvm)
  *   STACK_INSTALL                     Which components of the stack to install
@@ -68,6 +69,11 @@ def salt_overrides_list = SALT_OVERRIDES.tokenize('\n')
 def build_disabled = 'disable-deploy-test'
 def build_result = 'FAILURE'
 def slave_node = 'python'
+def stack_cluster_name = ''
+
+if (common.validInputParam('STACK_CLUSTER_NAME')){
+    stack_cluster_name = STACK_CLUSTER_NAME
+}
 
 def get_test_pattern(project) {
     def pattern_map = ['cinder': 'volume',
@@ -252,6 +258,7 @@ node(slave_node) {
                     [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: stack_reclass_branch],
                     [$class: 'StringParameterValue', name: 'STACK_TEST', value: ''],
                     [$class: 'StringParameterValue', name: 'STACK_TYPE', value: STACK_TYPE],
+                    [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: stack_cluster_name],
                     [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: formula_pkg_revision],
                     [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: false],
                     [$class: 'TextParameterValue', name: 'SALT_OVERRIDES', value: salt_overrides_list.join('\n')],
