@@ -113,11 +113,14 @@ node("oscore-testing") {
       parallel deploy_release
     }
 
-    def test_result = true
+    def success_models = []
+    def failed_models = []
     stage('Managing deployment results') {
       testBuilds.each {
         if (it.value.result != 'SUCCESS') {
-          test_result = false
+          failed_models.add("${it.key}: ${it.value.result}")
+        } else {
+          success_models.add("${it.key}: ${it.value.result}")
         }
         if (useGerrit){
           messages.add(0, setGerritBuildString(it.value, it.key))
@@ -125,8 +128,11 @@ node("oscore-testing") {
         }
       }
     }
-
-  if (!test_result) {
+  if(success_models){
+    common.successMsg(success_models.join('/n'))
+  }
+  if (failed_models) {
+    common.errorMsg(failed_models.join('/n'))
     error('Some of deploy jobs failed')
   }
 }
