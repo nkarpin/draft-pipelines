@@ -30,9 +30,11 @@ defcheckouted = false
 def testClusterNames
 def messages = ["${env.BUILD_URL}"]
 
+def useGerrit = false
 def gerritRef
 try {
   gerritRef = GERRIT_REFSPEC
+  useGerrit = true
 } catch (MissingPropertyException e) {
   gerritRef = STACK_RECLASS_BRANCH
 }
@@ -73,10 +75,16 @@ node("python") {
   }
 
   if(common.validInputParam('TEST_CLUSTER_NAMES')){
-    common.infoMsg("TEST_CLUSTER_NAMES was set explicitly using its value: ${TEST_CLUSTER_NAMES}")
-    testClusterNames = TEST_CLUSTER_NAMES.tokenize('/')
-  } else {
-    // TODO: add logic to automatically pick changed mode
+    def modifiedClusters
+    if (useGerrit){
+      common.infoMsg("TEST_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
+      common.infoMsg("Checking if we have to run any clusters in ${TEST_CLUSTER_NAMES}")
+      modifiedClusters = sh(script: "set +x;git diff-tree --no-commit-id --name-only -r HEAD | grep classes/cluster/ | awk -F/ '{print \$3}' | uniq", returnStdout: true).tokenize()
+      testClusterNames = modifiedClusters.intersect(TEST_CLUSTER_NAMES.tokenize(','))
+    } else {
+      common.infoMsg("Running deploy for ${TEST_CLUSTER_NAMES}")
+      testClusterNames = TEST_CLUSTER_NAMES.tokenize(',')
+    }
   }
 
   def testBuilds = [:]
