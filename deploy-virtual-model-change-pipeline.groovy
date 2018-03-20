@@ -124,10 +124,10 @@ node("python") {
     }
   }
   if(success_models){
-    common.successMsg(success_models.join('/n'))
+    common.successMsg(success_models.join('\n'))
   }
   if (failed_models) {
-    common.errorMsg(failed_models.join('/n'))
+    common.errorMsg(failed_models.join('\n'))
     error('Some of deploy jobs failed')
   }
 }
