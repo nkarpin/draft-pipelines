@@ -173,8 +173,8 @@ node(slave_node) {
         } else if (get_test_pattern(project)) {
             test_pattern = "${get_test_pattern(project)} --concurrency ${test_concurrency}"
         }
-        if (!test_tempest_pattern && !run_smoke){
-               error('No RUN_SMOKE and TEST_TEMPEST_PATTERN are set, no tests will be executed')
+        if (!test_pattern && !run_smoke){
+               error('No RUN_SMOKE and TEST_PATTERN are set, no tests will be executed')
         }
 
         if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
