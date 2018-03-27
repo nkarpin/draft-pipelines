@@ -16,6 +16,20 @@
 common = new com.mirantis.mk.Common()
 aptly = new com.mirantis.mk.Aptly()
 
+import java.util.regex.Pattern;
+
+@NonCPS
+def getRemoteStorage(String prefix) {
+    def regex = Pattern.compile('(^.*):')
+    def matcher = regex.matcher(prefix)
+    if(matcher.find()){
+        def storageName = matcher.group(1)
+        return storageName
+    }else{
+        return ''
+    }
+}
+
 timeout(time: 6, unit: 'HOURS') {
     node('oscore-testing'){
         def server = [
@@ -23,7 +37,7 @@ timeout(time: 6, unit: 'HOURS') {
         ]
         def repo = SOURCE_REPO_NAME
         def components = COMPONENTS
-        def prefixes = ['oscc-dev']
+        def prefixes = ['oscc-dev','s3:aptcdn:oscc-dev']
         def tmp_repo_node_name = TMP_REPO_NODE_NAME
 //    def tmp_repo_node_name = 'apt.mcp.mirantis.net:8085'
 //    def STACK_RECLASS_ADDRESS = 'https://gerrit.mcp.mirantis.net/salt-models/mcp-virtual-aio'
@@ -38,6 +52,7 @@ timeout(time: 6, unit: 'HOURS') {
         def ts = now.format('yyyyMMddHHmmss', TimeZone.getTimeZone('UTC'))
         def snapshotName = "os-salt-formulas-${ts}-oscc-dev"
         def distribution = "${DISTRIBUTION}-${ts}"
+        def storage
 
         lock('aptly-api') {
 
@@ -97,8 +112,9 @@ timeout(time: 6, unit: 'HOURS') {
            }
            if (common.validInputParam('AUTO_PROMOTE') && AUTO_PROMOTE.toBoolean() == true) {
                 for (prefix in prefixes) {
+                    storage = getRemoteStorage(prefix)
                     common.successMsg("${components} repo with prefix: ${prefix} distribution: ${distribution} snapshot: ${snapshotName} will be promoted to testing")
-                    aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, OPENSTACK_COMPONENTS_LIST, '', '-d --timeout 1200', '', '')
+                    aptly.promotePublish(server['url'], "${prefix}/${distribution}", 'xenial/testing', 'false', components, OPENSTACK_COMPONENTS_LIST, '', '-d --timeout 1200', '', "${storage}")
                 }
            }
        }
