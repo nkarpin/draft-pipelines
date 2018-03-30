@@ -57,19 +57,6 @@
  *   ARTIFACTORY_CREDENTIALS           Credentials to Artifactory
  *
  **/
-
-// Get job environment to use as a map to get values with defaults
-def job_env = env.getEnvironment()
-
-// Check parent job(s) status if any
-String parent_jobs = job_env.get('TRIGGER_DEPENDENCY_KEYS', '')
-for (parent_job in parent_jobs.split(' ')) {
-    if (job_env.get("TRIGGER_${parent_job}_BUILD_RESULT".toString()) == 'FAILURE') {
-        currentBuild.result = 'NOT_BUILT'
-        error 'Parent job(s) failed. Skip build.'
-    }
-}
-
 common = new com.mirantis.mk.Common()
 test = new com.mirantis.mk.Test()
 openstack = new com.mirantis.mk.Openstack()
