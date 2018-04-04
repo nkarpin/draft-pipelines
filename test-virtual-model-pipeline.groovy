@@ -10,6 +10,8 @@
 *    STACK_CLUSTER_NAME                The name of cluster to test.
 *
 *    FORMULA_PKG_REVISION              Formulas release to deploy with (stable, testing or nightly)
+*    BOOTSTRAP_EXTRA_REPO_PARAMS       List of extra repos and related parameters injected on salt bootstrap stage:
+*                                      repo 1, repo priority 1, repo pin 1; repo 2, repo priority 2, repo pin 2
 *
 *    DEPLOY_JOB_NAME                   The name of job to deploy cluster with. By default constructed with
 *                                      "deploy-heat-$(STACK_CLUSTER_NAME.replace('-', '_'))"
@@ -84,6 +86,13 @@ if (common.validInputParam('STACK_CLEANUP_JOB')) {
   stackCleanupJob = 'deploy-stack-cleanup'
 }
 
+def extraRepo
+if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
+  extraRepo = BOOTSTRAP_EXTRA_REPO_PARAMS
+} else {
+  extraRepo = ''
+}
+
 node("oscore-testing") {
 
   try {
@@ -94,6 +103,7 @@ node("oscore-testing") {
         [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: FORMULA_PKG_REVISION],
         [$class: 'StringParameterValue', name: 'HEAT_STACK_ZONE', value: HEAT_STACK_ZONE],
         [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT', value: OPENSTACK_API_PROJECT],
+        [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
         [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: false],
         ]
       )
