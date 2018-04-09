@@ -57,6 +57,19 @@
  *   ARTIFACTORY_CREDENTIALS           Credentials to Artifactory
  *
  **/
+
+// Get job environment to use as a map to get values with defaults
+def job_env = env.getEnvironment()
+
+// Check parent job(s) status if any
+String parent_jobs = job_env.get('TRIGGER_DEPENDENCY_KEYS', '')
+for (parent_job in parent_jobs.split(' ')) {
+    if (job_env.get("TRIGGER_${parent_job}_BUILD_RESULT".toString()) == 'FAILURE') {
+        currentBuild.result = 'NOT_BUILT'
+        error 'Parent job(s) failed. Skip build.'
+    }
+}
+
 common = new com.mirantis.mk.Common()
 test = new com.mirantis.mk.Test()
 openstack = new com.mirantis.mk.Openstack()
@@ -152,7 +165,7 @@ node(slave_node) {
                 // get project from mcp-gerrit project (e.g. nova from packaging/specs/nova)
                 project = GERRIT_PROJECT.tokenize('/')[2]
                 pkgReviewNameSpace = "binary-dev-local/pkg-review/${GERRIT_CHANGE_NUMBER}"
-                repo_url = REPO_URL ?: "${artifactoryUrl}/${pkgReviewNameSpace} /"
+                repo_url = env.REPO_URL ?: env.GERRIT_EVENT_TYPE == 'change-merged' ? env.REPO_URL_MERGED : env.REPO_URL_REVIEW
             }
             // currently artifactory CR repositories  aren't signed - related bug PROD-14585
             extra_repo = "deb [ arch=amd64 trusted=yes ] ${repo_url}"
