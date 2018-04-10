@@ -63,7 +63,7 @@ try {
   gerritBranch = STACK_RECLASS_BRANCH
 }
 
-def systestJob = 'test_virtual_model'
+def systestJob = 'oscore-test_virtual_model'
 if (common.validInputParam('SYSTEST_JOB')) {
     systestJob = SYSTEST_JOB
 }
