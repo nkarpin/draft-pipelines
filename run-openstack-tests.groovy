@@ -75,6 +75,32 @@ def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/ho
     salt.cmdRun(master, "${target}", "docker run --rm --net=host ${docker_run}")
 }
 
+/**
+ * Configure the node where runtest state is going to be executed
+ *
+ * @param nodename          nodename is going to be configured
+ * @param test_target       Salt target to run tempest on e.g. gtw*
+ * @param tempest_cfg_dir   directory to tempest configuration file
+ * @param logdir            directory to put tempest log files
+ **/
+
+def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, logdir) {
+    // Set up test_target parameter on node level
+    def fullnodename = salt.getMinions(saltMaster, nodename).get(0)
+    def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
+
+    common.infoMsg("Setting up mandatory runtest parameters in ${fullnodename} on node level")
+
+    salt.runSaltProcessStep(saltMaster, fullnodename, 'pkg.install', ["salt-formula-runtest", "salt-formula-artifactory"])
+    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
+    salt.checkResult(result)
+
+    salt.fullRefresh(saltMaster, "*")
+    salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
+    salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
+    salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+}
+
 // Define global variables
 def saltMaster
 def slave_node = 'python'
@@ -131,9 +157,7 @@ timeout(time: 6, unit: 'HOURS') {
                 }
             }
 
-            // Set up test_target parameter on cluster level
-            common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
-            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
+            configureRuntestNode(saltMaster, 'cfg01*', TEST_TARGET, reports_dir, log_dir)
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
