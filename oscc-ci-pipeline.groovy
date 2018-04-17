@@ -7,15 +7,11 @@
  *                              example:
  *                                      def prefixes = ['oscc-dev', 's3:aptcdn:oscc-dev']
  * TMP_REPO_NODE_NAME           Node name where temp repo will be published
- * STACK_RECLASS_ADDRESS        URL for reclass model storage
- * OPENSTACK_RELEASES           OpenStack releases with comma delimeter which have to be testes. For example: pike,ocata
  * SOURCE_REPO_NAME             Name of the repo where packages are stored. For example: ubuntu-xenial-salt
  * APTLY_API_URL                URL to connect to aptly API. For example: http://172.16.48.254:8084
- * TEST_MULTINODE               Whether to test nightly snapshot against multi-node virtual models
  * MULTINODE_JOB                Job name to deploy multi-node model
- * STACK_CLUSTER_NAMES          Comma separated list of cluster names to test. If set and pipeline is
- *                              triggered via gerrit than we will find changed cluster model and run
- *                              tests only when they are present in STACK_CLUSTER_NAMES.
+ * TEST_SCHEMAS                 Defines structure to pass model, cluster_name, branch to run tests on it.
+ *                              For example 'aio:cluster-name1:branch1,branch2|multinode:cluster-name2:branch1,branch2'
  * AUTO_PROMOTE                 True/False promote or not
  **/
 common = new com.mirantis.mk.Common()
@@ -35,6 +31,29 @@ def getRemoteStorage(String prefix) {
     }
 }
 
+def getTestSchemas(testSchemas){
+    def schemas = testSchemas.tokenize('|')
+    def aio_schemas = []
+    def multinode_schemas = []
+    def cluster_branch
+    for (schema in schemas){
+        if ( schema.tokenize(':')[0] == 'aio' ){
+            aio_schemas.add(
+              ['cluster_name': schema.tokenize(':')[1],
+               'branches': schema.tokenize(':')[2].tokenize(',')]
+            )
+        } else if (schema.tokenize(':')[0] == 'multinode' ){
+            multinode_schemas.add(
+              ['cluster_name': schema.tokenize(':')[1],
+               'branches': schema.tokenize(':')[2].tokenize(',')]
+            )
+        }
+
+    }
+    return ['aio_schemas': aio_schemas, 'multinode_schemas': multinode_schemas]
+}
+
+def testSchemas
 def multinod_job = 'oscore-test_virtual_model'
 if (common.validInputParam('MULTINODE_JOB')) {
     multinod_job = MULTINODE_JOB
@@ -49,9 +68,6 @@ timeout(time: 6, unit: 'HOURS') {
         def components = COMPONENTS
         def prefixes = ['oscc-dev','s3:aptcdn:oscc-dev']
         def tmp_repo_node_name = TMP_REPO_NODE_NAME
-//    def tmp_repo_node_name = 'apt.mcp.mirantis.net:8085'
-//    def STACK_RECLASS_ADDRESS = 'https://gerrit.mcp.mirantis.net/salt-models/mcp-virtual-aio'
-//    def OPENSTACK_RELEASES = 'ocata,pike'
         def notToPromote
         def notToPromoteMulti
         def testBuilds = [:]
@@ -84,48 +100,50 @@ timeout(time: 6, unit: 'HOURS') {
             }
         }
 
+        testSchemas = getTestSchemas(TEST_SCHEMAS)
         stage('Deploying environment and testing'){
-            for (openstack_release in OPENSTACK_RELEASES.tokenize(',')) {
-                def release = openstack_release
-                deploy_release["OpenStack ${release} deployment"] = {
-                    node('oscore-testing') {
-                        testBuilds["${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
-                            [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
-                            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
-                            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
-                            [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: STACK_RECLASS_ADDRESS],
-                            [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
-                        ]
-                    }
-                }
-            }
+            def testSchemasAIO = testSchemas['aio_schemas']
+            common.infoMsg("Running AIO deployment on the following schemas: ${testSchemasAIO}")
+            for (schema in testSchemasAIO){
+                def cn = schema['cluster_name']
+                for (branch in schema['branches']){
+                    def release = branch.tokenize('/')[1]
 
-            if (common.validInputParam('TEST_MULTINODE') && TEST_MULTINODE.toBoolean() == true) {
-
-                if(common.validInputParam('STACK_CLUSTER_NAMES')){
-                    common.infoMsg("Running deploy for ${STACK_CLUSTER_NAMES}")
-                    testClusterNames = STACK_CLUSTER_NAMES.tokenize(',')
-                }
-
-                stage('Deploying multi-node configuration are going to be tested'){
-                    for (cluster_name in testClusterNames) {
-                        def cn = cluster_name
-                        deploy_release["Deploy ${cn}"] = {
-                            node('oscore-testing') {
-                                testBuildsMulti["${cn}"] = build job: multinod_job, propagate: false, parameters: [
-                                    [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
-                                    [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
-                                    [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
-                                    [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
-                                    [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
-                                  ]
-                            }
+                    deploy_release["OpenStack ${release} deployment"] = {
+                        node('oscore-testing') {
+                            testBuilds["${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
+                                [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
+                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
+                                [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
+                                [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
+                                [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
+                            ]
                         }
                     }
                 }
             }
 
+            def testSchemasMultinode = testSchemas['multinode_schemas']
+            for (schema in testSchemasMultinode){
+                common.infoMsg("Running Multinode deployment on the following schemas: ${testSchemasMultinode}")
+                def cn = schema['cluster_name']
+                for (branch in schema['branches']){
+                    def br = branch
 
+                    deploy_release["Deploy ${cn}"] = {
+                        node('oscore-testing') {
+                            testBuildsMulti["${cn}"] = build job: multinod_job, propagate: false, parameters: [
+                                [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
+                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "testing"],
+                                [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
+                                [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
+                                [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
+                                [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: br],
+                              ]
+                        }
+                    }
+                }
+            }
         }
 
         stage('Running parallel OpenStack deployment') {
