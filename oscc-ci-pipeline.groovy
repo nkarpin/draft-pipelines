@@ -109,7 +109,7 @@ timeout(time: 6, unit: 'HOURS') {
                     def cn = schema['cluster_name']
                     def release = branch.tokenize('/')[1]
 
-                    deploy_release["OpenStack ${release} deployment"] = {
+                    deploy_release["Deploy ${cn} ${release}"] = {
                         node('oscore-testing') {
                             testBuilds["${cn}-${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
@@ -130,7 +130,7 @@ timeout(time: 6, unit: 'HOURS') {
                     def cn = schema['cluster_name']
                     def br = branch
 
-                    deploy_release["Deploy ${cn}"] = {
+                    deploy_release["Deploy ${cn} ${branch}"] = {
                         node('oscore-testing') {
                             testBuildsMulti["${cn}-${br}"] = build job: multinod_job, propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
