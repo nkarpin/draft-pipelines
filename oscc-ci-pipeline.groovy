@@ -105,13 +105,13 @@ timeout(time: 6, unit: 'HOURS') {
             def testSchemasAIO = testSchemas['aio_schemas']
             common.infoMsg("Running AIO deployment on the following schemas: ${testSchemasAIO}")
             for (schema in testSchemasAIO){
-                def cn = schema['cluster_name']
                 for (branch in schema['branches']){
+                    def cn = schema['cluster_name']
                     def release = branch.tokenize('/')[1]
 
                     deploy_release["OpenStack ${release} deployment"] = {
                         node('oscore-testing') {
-                            testBuilds["${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
+                            testBuilds["${cn}-${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
                                 [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
@@ -124,22 +124,22 @@ timeout(time: 6, unit: 'HOURS') {
             }
 
             def testSchemasMultinode = testSchemas['multinode_schemas']
+            common.infoMsg("Running Multinode deployment on the following schemas: ${testSchemasMultinode}")
             for (schema in testSchemasMultinode){
-                common.infoMsg("Running Multinode deployment on the following schemas: ${testSchemasMultinode}")
-                def cn = schema['cluster_name']
                 for (branch in schema['branches']){
+                    def cn = schema['cluster_name']
                     def br = branch
 
                     deploy_release["Deploy ${cn}"] = {
                         node('oscore-testing') {
-                            testBuildsMulti["${cn}"] = build job: multinod_job, propagate: false, parameters: [
+                            testBuildsMulti["${cn}-${br}"] = build job: multinod_job, propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
                                 [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "testing"],
                                 [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
                                 [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: br],
-                              ]
+                            ]
                         }
                     }
                 }
