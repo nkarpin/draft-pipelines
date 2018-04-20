@@ -76,11 +76,17 @@ node("python") {
 
   if(common.validInputParam('TEST_CLUSTER_NAMES')){
     def modifiedClusters
+    def reclassBumped
     if (useGerrit){
       common.infoMsg("TEST_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
       common.infoMsg("Checking if we have to run any clusters in ${TEST_CLUSTER_NAMES}")
-      modifiedClusters = sh(script: "set +x;git diff-tree --no-commit-id --name-only -r HEAD | grep classes/cluster/ | awk -F/ '{print \$3}' | uniq", returnStdout: true).tokenize()
-      testClusterNames = modifiedClusters.intersect(TEST_CLUSTER_NAMES.tokenize(','))
+      reclassBumped = sh(script: "set +x;git diff-tree --no-commit-id --name-only -r HEAD | grep classes/system | awk -F/ '{print \$2}'", returnStdout: true).asBoolean()
+      if (reclassBumped){
+        testClusterNames = TEST_CLUSTER_NAMES.tokenize(',')
+      } else {
+        modifiedClusters = sh(script: "set +x;git diff-tree --no-commit-id --name-only -r HEAD | grep classes/cluster/ | awk -F/ '{print \$3}' | uniq", returnStdout: true).tokenize()
+        testClusterNames = modifiedClusters.intersect(TEST_CLUSTER_NAMES.tokenize(','))
+      }
     } else {
       common.infoMsg("Running deploy for ${TEST_CLUSTER_NAMES}")
       testClusterNames = TEST_CLUSTER_NAMES.tokenize(',')
