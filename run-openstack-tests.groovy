@@ -83,137 +83,139 @@ if (common.validInputParam('SLAVE_NODE')) {
     slave_node = SLAVE_NODE
 }
 
-node(slave_node) {
+timeout(time: 6, unit: 'HOURS') {
+    node(slave_node) {
 
-    def test_type = 'tempest'
-    if (common.validInputParam('TEST_TYPE')){
-        test_type = TEST_TYPE
-    }
-    def log_dir = '/home/rally/rally_reports/'
-    def reports_dir = '/root/rally_reports/'
-    def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
-    def test_log_dir = "/var/log/${test_type}"
-    def testrail = false
-    def test_pattern = ''
-    def test_milestone = ''
-    def test_model = ''
-    def venv = "${env.WORKSPACE}/venv"
-    def test_concurrency = '0'
-    def test_set = 'full'
-    def use_pepper = true
-    if (common.validInputParam('USE_PEPPER')){
-        use_pepper = USE_PEPPER.toBoolean()
-    }
-
-    try {
-
-        if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
-            testrail = true
-            if (common.validInputParam('TEST_MILESTONE') && common.validInputParam('TEST_MODEL')) {
-                test_milestone = TEST_MILESTONE
-                test_model = TEST_MODEL
-            } else {
-                error('WHEN UPLOADING RESULTS TO TESTRAIL TEST_MILESTONE AND TEST_MODEL MUST BE SET')
-            }
+        def test_type = 'tempest'
+        if (common.validInputParam('TEST_TYPE')){
+            test_type = TEST_TYPE
+        }
+        def log_dir = '/home/rally/rally_reports/'
+        def reports_dir = '/root/rally_reports/'
+        def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
+        def test_log_dir = "/var/log/${test_type}"
+        def testrail = false
+        def test_pattern = ''
+        def test_milestone = ''
+        def test_model = ''
+        def venv = "${env.WORKSPACE}/venv"
+        def test_concurrency = '0'
+        def test_set = 'full'
+        def use_pepper = true
+        if (common.validInputParam('USE_PEPPER')){
+            use_pepper = USE_PEPPER.toBoolean()
         }
 
-        if (common.validInputParam('TEST_CONCURRENCY')) {
-            test_concurrency = TEST_CONCURRENCY
-        }
+        try {
 
-        stage ('Connect to salt master') {
-            if (use_pepper) {
-                python.setupPepperVirtualenv(venv, SALT_MASTER_URL, SALT_MASTER_CREDENTIALS, true)
-                saltMaster = venv
-            } else {
-                saltMaster = salt.connection(SALT_MASTER_URL, SALT_MASTER_CREDENTIALS)
-            }
-        }
-
-        // Set up test_target parameter on cluster level
-        common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
-        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
-
-        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
-        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
-
-        if (common.checkContains('TEST_DOCKER_INSTALL', 'true')) {
-            test.install_docker(saltMaster, TEST_TARGET)
-        }
-
-        if (common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
-            salt.cmdRun(saltMaster, TEST_TARGET, "docker load --input ${LOCAL_TEMPEST_IMAGE}", true, null, false)
-        }
-
-        // TODO: implement stepler testing from this pipeline
-        stage('Run OpenStack tests') {
-
-            if (test_type == 'stepler'){
-                runSteplerTests(saltMaster, TEST_IMAGE,
-                    TEST_TARGET,
-                    TEST_PATTERN,
-                    '/home/stepler/tests_reports/',
-                    '',
-                    '/home/stepler/keystonercv3',
-                    reports_dir)
-            } else {
-
-                if (common.validInputParam('TEST_SET')) {
-                    test_set = TEST_SET
-                    common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
-                } else if (common.validInputParam('TEST_PATTERN')) {
-                    test_pattern = TEST_PATTERN
-                    common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
-                }
-                if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
-                    salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
-                }
-
-                if (salt.testTarget(saltMaster, 'I@runtest:tempest and cfg01*')) {
-                    salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest'], true)
+            if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
+                testrail = true
+                if (common.validInputParam('TEST_MILESTONE') && common.validInputParam('TEST_MODEL')) {
+                    test_milestone = TEST_MILESTONE
+                    test_model = TEST_MODEL
                 } else {
-                    common.warningMsg('Cannot generate tempest config by runtest salt')
+                    error('WHEN UPLOADING RESULTS TO TESTRAIL TEST_MILESTONE AND TEST_MODEL MUST BE SET')
                 }
-
-                test.runTempestTests(saltMaster, TEST_IMAGE,
-                    TEST_TARGET,
-                    test_pattern,
-                    log_dir,
-                    '/home/rally/keystonercv3',
-                    test_set,
-                    test_concurrency,
-                    TEST_CONF)
-
-                def tempest_stdout
-                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${test_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
-                common.infoMsg('Short test report:')
-                common.infoMsg(tempest_stdout)
             }
+
+            if (common.validInputParam('TEST_CONCURRENCY')) {
+                test_concurrency = TEST_CONCURRENCY
+            }
+
+            stage ('Connect to salt master') {
+                if (use_pepper) {
+                    python.setupPepperVirtualenv(venv, SALT_MASTER_URL, SALT_MASTER_CREDENTIALS, true)
+                    saltMaster = venv
+                } else {
+                    saltMaster = salt.connection(SALT_MASTER_URL, SALT_MASTER_CREDENTIALS)
+                }
+            }
+
+            // Set up test_target parameter on cluster level
+            common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
+            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
+
+            salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
+            salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
+
+            if (common.checkContains('TEST_DOCKER_INSTALL', 'true')) {
+                test.install_docker(saltMaster, TEST_TARGET)
+            }
+
+            if (common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
+                salt.cmdRun(saltMaster, TEST_TARGET, "docker load --input ${LOCAL_TEMPEST_IMAGE}", true, null, false)
+            }
+
+            // TODO: implement stepler testing from this pipeline
+            stage('Run OpenStack tests') {
+
+                if (test_type == 'stepler'){
+                    runSteplerTests(saltMaster, TEST_IMAGE,
+                        TEST_TARGET,
+                        TEST_PATTERN,
+                        '/home/stepler/tests_reports/',
+                        '',
+                        '/home/stepler/keystonercv3',
+                        reports_dir)
+                } else {
+
+                    if (common.validInputParam('TEST_SET')) {
+                        test_set = TEST_SET
+                        common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
+                    } else if (common.validInputParam('TEST_PATTERN')) {
+                        test_pattern = TEST_PATTERN
+                        common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
+                    }
+                    if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
+                        salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
+                    }
+
+                    if (salt.testTarget(saltMaster, 'I@runtest:tempest and cfg01*')) {
+                        salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest'], true)
+                    } else {
+                        common.warningMsg('Cannot generate tempest config by runtest salt')
+                    }
+
+                    test.runTempestTests(saltMaster, TEST_IMAGE,
+                        TEST_TARGET,
+                        test_pattern,
+                        log_dir,
+                        '/home/rally/keystonercv3',
+                        test_set,
+                        test_concurrency,
+                        TEST_CONF)
+
+                    def tempest_stdout
+                    tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${test_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                    common.infoMsg('Short test report:')
+                    common.infoMsg(tempest_stdout)
+                }
+            }
+
+            stage('Archive rally artifacts') {
+                test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
+            }
+
+            salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
+            salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.move', ["${reports_dir}", "${test_log_dir}/${PROJECT}-${date}"])
+
+            stage('Processing results') {
+                build(job: PROC_RESULTS_JOB, parameters: [
+                    [$class: 'StringParameterValue', name: 'TARGET_JOB', value: "${env.JOB_NAME}"],
+                    [$class: 'StringParameterValue', name: 'TARGET_BUILD_NUMBER', value: "${env.BUILD_NUMBER}"],
+                    [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: testrail.toBoolean()],
+                    [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
+                    [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_model],
+                    [$class: 'StringParameterValue', name: 'OPENSTACK_VERSION', value: OPENSTACK_VERSION],
+                    [$class: 'StringParameterValue', name: 'TEST_DATE', value: date],
+                    [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: TEST_PASS_THRESHOLD],
+                    [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: FAIL_ON_TESTS.toBoolean()]
+                ])
+            }
+
+        } catch (Exception e) {
+            currentBuild.result = 'FAILURE'
+            throw e
         }
-
-        stage('Archive rally artifacts') {
-            test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
-        }
-
-        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
-        salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.move', ["${reports_dir}", "${test_log_dir}/${PROJECT}-${date}"])
-
-        stage('Processing results') {
-            build(job: PROC_RESULTS_JOB, parameters: [
-                [$class: 'StringParameterValue', name: 'TARGET_JOB', value: "${env.JOB_NAME}"],
-                [$class: 'StringParameterValue', name: 'TARGET_BUILD_NUMBER', value: "${env.BUILD_NUMBER}"],
-                [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: testrail.toBoolean()],
-                [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
-                [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_model],
-                [$class: 'StringParameterValue', name: 'OPENSTACK_VERSION', value: OPENSTACK_VERSION],
-                [$class: 'StringParameterValue', name: 'TEST_DATE', value: date],
-                [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: TEST_PASS_THRESHOLD],
-                [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: FAIL_ON_TESTS.toBoolean()]
-            ])
-        }
-
-    } catch (Exception e) {
-        currentBuild.result = 'FAILURE'
-        throw e
     }
 }
