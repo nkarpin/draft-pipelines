@@ -130,6 +130,10 @@ if (common.validInputParam('SOURCES')) {
             stack_cluster_name = 'virtual-mcp11-aio-telemetry'
             openstack_releases = ['pike']
             break
+        case ~/ironic|baremetal-simulator/:
+            stack_cluster_name = 'virtual-mcp11-aio-ironic'
+            openstack_releases = ['pike']
+            break
     }
 } else {
     common.errorMsg('SOURCES or GERRIT_* parameters are empty.')
