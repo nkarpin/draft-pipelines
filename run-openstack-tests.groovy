@@ -35,6 +35,7 @@
  *   TEST_PASS_THRESHOLD          Persent of passed tests to consider build successful
  *   SLAVE_NODE                   Label or node name where the job will be run
  *   USE_PEPPER                   Whether to use pepper for connection to salt master
+ *   USE_RALLY                    Whether to use rally to launch tests
  *
  */
 
@@ -117,6 +118,52 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
 }
 
+ /**
+ * Execute tempest tests
+ *
+ * @param dockerImageLink       Docker image link with rally and tempest
+ * @param target                Host to run tests
+ * @param args                  Arguments that we pass in tempest
+ * @param logDir                Directory to store tempest reports in container
+ * @param localLogDir           Path to local destination folder for logs on host machine
+ * @param tempestConfLocalPath  Path to tempest config on host machine
+ */
+
+def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
+                       tempestConfLocalPath='/root/test/tempest_generated.conf') {
+    def salt = new com.mirantis.mk.Salt()
+    salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
+    salt.cmdRun(master, "${target}", "docker run " +
+                                    "-e ARGS=${args} " +
+                                    "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
+                                    "-v ${localLogDir}:${logDir} " +
+                                    "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
+                                    "-v /tmp/:/tmp/ " +
+                                    "--rm ${dockerImageLink} " +
+                                    "/bin/bash -c \"run-tempest\" ")
+}
+
+/** Archive Tempest results in Artifacts
+ *
+ * @param master              Salt connection.
+ * @param target              Target node to install docker pkg
+ * @param reports_dir         Source directory to archive
+ */
+def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
+    def salt = new com.mirantis.mk.Salt()
+
+    def artifacts_dir = '_artifacts/'
+
+    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
+    sh "mkdir -p ${artifacts_dir}"
+
+    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
+    writeFile file: "${artifacts_dir}${output_file}", text: encoded
+
+    // collect artifacts
+    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
+}
+
 // Define global variables
 def saltMaster
 def slave_node = 'python'
@@ -128,15 +175,32 @@ if (common.validInputParam('SLAVE_NODE')) {
 timeout(time: 6, unit: 'HOURS') {
     node(slave_node) {
 
+        // remove when pipeline is switched to new container
+        def use_rally = true
+        if (common.validInputParam('USE_RALLY')){
+            use_rally = USE_RALLY.toBoolean()
+        }
+
         def test_type = 'tempest'
         if (common.validInputParam('TEST_TYPE')){
             test_type = TEST_TYPE
         }
-        def log_dir = '/home/rally/rally_reports/'
-        def reports_dir = '/root/rally_reports/'
+
+        def log_dir = '/root/tempest/'
+        // remove when pipeline is switched to new container
+        if (use_rally){
+            log_dir = '/home/rally/rally_reports/'
+        }
+        def reports_dir = '/root/test/'
+        // remove when pipeline is switched to new container
+        if (use_rally){
+            reports_dir = '/root/rally_reports/'
+        }
+
         def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
         def test_log_dir = "/var/log/${test_type}"
         def testrail = false
+        def args = ''
         def test_pattern = ''
         def test_milestone = ''
         def test_model = ''
@@ -199,13 +263,29 @@ timeout(time: 6, unit: 'HOURS') {
                         reports_dir)
                 } else {
 
-                    if (common.validInputParam('TEST_SET')) {
-                        test_set = TEST_SET
-                        common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
-                    } else if (common.validInputParam('TEST_PATTERN')) {
-                        test_pattern = TEST_PATTERN
-                        common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
+                    if (use_rally) {
+
+                        if (common.validInputParam('TEST_SET')) {
+                            test_set = TEST_SET
+                            common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
+                        } else if (common.validInputParam('TEST_PATTERN')) {
+                            test_pattern = TEST_PATTERN
+                            common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
+                        }
+
+                    } else {
+
+                        // There are some jobs which launch tempest runner with empty pattern and
+                        // test_set=smoke
+                        if (common.validInputParam('TEST_PATTERN')) {
+                            test_pattern = TEST_PATTERN
+                        } else {
+                            test_pattern = 'smoke'
+                        }
+
+                        args = "\'-r ${test_pattern} -w ${test_concurrency}\'"
                     }
+
                     if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                         salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
                     }
@@ -216,24 +296,36 @@ timeout(time: 6, unit: 'HOURS') {
                         common.warningMsg('Cannot generate tempest config by runtest salt')
                     }
 
-                    test.runTempestTests(saltMaster, TEST_IMAGE,
-                        TEST_TARGET,
-                        test_pattern,
-                        log_dir,
-                        '/home/rally/keystonercv3',
-                        test_set,
-                        test_concurrency,
-                        TEST_CONF)
+                    if (use_rally) {
+                        test.runTempestTests(saltMaster, TEST_IMAGE,
+                            TEST_TARGET,
+                            test_pattern,
+                            log_dir,
+                            '/home/rally/keystonercv3',
+                            test_set,
+                            test_concurrency,
+                            TEST_CONF)
+                    } else {
+                        // Remove this when job TEST_IMAGE is switched to new docker imge
+                        if (!common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
+                            TEST_IMAGE = 'docker-prod-virtual.docker.mirantis.net/mirantis/cicd/ci-tempest'
+                        }
+                        runTempestTestsNew(saltMaster, TEST_TARGET, TEST_IMAGE, args)
+                    }
 
                     def tempest_stdout
-                    tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${test_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                    tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
                     common.infoMsg('Short test report:')
                     common.infoMsg(tempest_stdout)
                 }
             }
 
-            stage('Archive rally artifacts') {
-                test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
+            stage('Archive Test artifacts') {
+                if (use_rally){
+                    test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                } else {
+                    archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                }
             }
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])
