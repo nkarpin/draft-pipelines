@@ -33,10 +33,13 @@
 *
 */
 
-def common = new com.mirantis.mk.Common()
-def aptly = new com.mirantis.mk.Aptly()
-def http = new com.mirantis.mk.Http()
-def gerrit = new com.mirantis.mk.Gerrit()
+common = new com.mirantis.mk.Common()
+aptly = new com.mirantis.mk.Aptly()
+http = new com.mirantis.mk.Http()
+gerrit = new com.mirantis.mk.Gerrit()
+openstack = new com.mirantis.mk.Openstack()
+python = new com.mirantis.mk.Python()
+salt = new com.mirantis.mk.Salt()
 
 def stackName
 def saltMasterUrl
@@ -93,6 +96,14 @@ if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
   extraRepo = ''
 }
 
+def installExtraFormula(saltMaster, formula) {
+    def result
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'pkg.install', "salt-formula-${formula}")
+    salt.checkResult(result)
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}","/srv/salt/reclass/classes/service/${formula}"])
+    salt.checkResult(result)
+}
+
 timeout(time: 6, unit: 'HOURS') {
     node("oscore-testing") {
 
@@ -144,6 +155,74 @@ timeout(time: 6, unit: 'HOURS') {
         currentBuild.result = 'FAILURE'
         throw e
       } finally {
+        stage ('Collecting artifacts') {
+          try {
+            def os_venv = "${WORKSPACE}/os-venv"
+            def artifacts_dir = '_artifacts/'
+
+            // create openstack env
+            openstack.setupOpenstackVirtualenv(os_venv, OPENSTACK_API_CLIENT)
+            def openstackCloud = openstack.createOpenstackEnv(os_venv,
+              OPENSTACK_API_URL, OPENSTACK_API_CREDENTIALS,
+              OPENSTACK_API_PROJECT, OPENSTACK_API_PROJECT_DOMAIN,
+              OPENSTACK_API_PROJECT_ID, OPENSTACK_API_USER_DOMAIN,
+              OPENSTACK_API_VERSION)
+            openstack.getKeystoneToken(openstackCloud, os_venv)
+
+            // Get dictionary with ids and names of servers from deployed stack
+            common.infoMsg("Getting servers from stack ${stackName}")
+            def servers = openstack.getHeatStackServers(openstackCloud, stackName, os_venv)
+
+            dir(artifacts_dir) {
+              deleteDir()
+              for (id in servers.keySet()){
+                common.infoMsg("Getting console log from server ${servers[id]}")
+                def l = openstack.runOpenstackCommand("openstack console log show ${id} --lines 20000", openstackCloud, os_venv)
+                writeFile file: servers[id], text: l
+              }
+            }
+
+            // TODO: implement upload to artifactory
+            archiveArtifacts artifacts: "${artifacts_dir}/*"
+          } catch (Exception e) {
+            common.errorMsg("Collecting console logs failed\n${e.message}")
+          }
+
+          if (common.validInputParam('SALT_MASTER_CREDENTIALS') && common.validInputParam('ARTIFACTORY_CREDENTIALS')) {
+            try {
+              def creds = common.getCredentials(ARTIFACTORY_CREDENTIALS)
+              def minions
+              def saltMasterTarget = ['expression': 'cfg01*', 'type': 'compound']
+              def result
+              def extraFormulas = ["runtest", "artifactory"]
+              def venv = "${env.WORKSPACE}/pepper-venv-${BUILD_NUMBER}"
+
+              python.setupPepperVirtualenv(venv, saltMasterUrl, SALT_MASTER_CREDENTIALS)
+
+              for (extraFormula in extraFormulas) {
+                installExtraFormula(venv, extraFormula)
+              }
+
+              minions = salt.getMinions(venv, '*')
+              for (minion in minions) {
+                result = salt.runSaltCommand(venv, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${minion}", "classes": ["service.runtest.tempest.artifactory"], "parameters": ["artifactory_user": "${creds.username}", "artifactory_password": "${creds.password.toString()}"]])
+                salt.checkResult(result)
+              }
+
+              salt.fullRefresh(venv, "*")
+
+              if (salt.testTarget(venv, 'I@runtest:artifact_collector')) {
+                salt.enforceState(venv, 'I@runtest:artifact_collector', ['runtest.artifact_collector'], true)
+              }
+            } catch (Exception e) {
+              common.errorMsg("Collecting environment artifacts failed\n${e.message}")
+            }
+          }
+        }
+
+        //
+        // Clean stack
+        //
         if (common.validInputParam('STACK_DELETE') && STACK_DELETE.toBoolean() == true) {
           try {
             if (!stackName){
