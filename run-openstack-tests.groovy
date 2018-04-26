@@ -75,6 +75,14 @@ def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/ho
     salt.cmdRun(master, "${target}", "docker run --rm --net=host ${docker_run}")
 }
 
+def installExtraFormula(saltMaster, formula) {
+    def result
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'pkg.install', "salt-formula-${formula}")
+    salt.checkResult(result)
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}","/srv/salt/reclass/classes/service/${formula}"])
+    salt.checkResult(result)
+}
+
 /**
  * Configure the node where runtest state is going to be executed
  *
@@ -88,14 +96,22 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     // Set up test_target parameter on node level
     def fullnodename = salt.getMinions(saltMaster, nodename).get(0)
     def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
+    def extraFormulas = ["runtest", "artifactory"]
+    def result
 
     common.infoMsg("Setting up mandatory runtest parameters in ${fullnodename} on node level")
 
-    salt.runSaltProcessStep(saltMaster, fullnodename, 'pkg.install', ["salt-formula-runtest", "salt-formula-artifactory"])
+//    salt.runSaltProcessStep(saltMaster, fullnodename, 'pkg.install', ["salt-formula-runtest", "salt-formula-artifactory"])
+    for (extraFormula in extraFormulas) {
+        installExtraFormula(saltMaster, extraFormula)
+    }
     result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
     salt.checkResult(result)
 
+    common.infoMsg("Perform full refresh for all nodes")
     salt.fullRefresh(saltMaster, "*")
+
+    common.infoMsg("Perform client states to create new resources")
     salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
     salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
     salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
