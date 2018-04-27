@@ -110,6 +110,13 @@ if (STACK_TYPE != 'heat' ) {
 
 timeout(time: 6, unit: 'HOURS') {
     node(slave_node) {
+
+        // Use container without rally on periodic pike nightly job,
+        // remove when switched to new container
+        def use_rally = true
+        if (JOB_NAME == 'oscore-MCP1.1-virtual_mcp11_aio-pike-nightly'){
+            use_rally = false
+        }
         def project = PROJECT
         // EXTRA_REPO_* parameters are deprecated in favor of BOOTSTRAP_EXTRA_REPO_PARAMS
         def extra_repo
@@ -148,6 +155,9 @@ timeout(time: 6, unit: 'HOURS') {
         try {
 
             if (common.validInputParam('GERRIT_PROJECT')) {
+                // Use container without rally on per-commit jobs related to packaging,
+                // remove when switched to new container
+                use_rally = false
                 def pkgReviewNameSpace
                 def repo_url
                 // TODO: use decodeBase64 method and check if the string should be decoded
@@ -309,6 +319,7 @@ timeout(time: 6, unit: 'HOURS') {
                         [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
                         [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
                         [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
+                        [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: use_rally],
                     ])
                 }
 
@@ -331,6 +342,7 @@ timeout(time: 6, unit: 'HOURS') {
                         [$class: 'StringParameterValue', name: 'PROJECT', value: project],
                         [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: TEST_PASS_THRESHOLD],
                         [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: FAIL_ON_TESTS.toBoolean()],
+                        [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: use_rally],
                     ])
                 }
             }
