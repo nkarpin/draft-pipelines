@@ -195,7 +195,11 @@ timeout(time: 6, unit: 'HOURS') {
             if (common.validInputParam('TEST_PATTERN')) {
                 test_pattern = TEST_PATTERN
             } else if (get_test_pattern(project)) {
-                test_pattern = "${get_test_pattern(project)} --concurrency ${test_concurrency}"
+                if (use_rally) {
+                    test_pattern = "${get_test_pattern(project)} --concurrency ${test_concurrency}"
+                } else {
+                    test_pattern = "${get_test_pattern(project)}"
+                }
             }
             if (!test_pattern && !run_smoke){
                    error('No RUN_SMOKE and TEST_PATTERN are set, no tests will be executed')
@@ -332,7 +336,7 @@ timeout(time: 6, unit: 'HOURS') {
                         [$class: 'StringParameterValue', name: 'TEST_CONF', value: TEST_CONF],
                         [$class: 'StringParameterValue', name: 'TEST_TARGET', value: TEST_TARGET],
                         [$class: 'StringParameterValue', name: 'TEST_SET', value: ''],
-                        [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: ''],
+                        [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: test_concurrency],
                         [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: test_pattern],
                         [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
                         [$class: 'StringParameterValue', name: 'TEST_MODEL', value: TEST_MODEL],
