@@ -105,7 +105,7 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     for (extraFormula in extraFormulas) {
         installExtraFormula(saltMaster, extraFormula)
     }
-    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest","service.runtest.tempest.public_net"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
+    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
     salt.checkResult(result)
 
     common.infoMsg("Perform full refresh for all nodes")
