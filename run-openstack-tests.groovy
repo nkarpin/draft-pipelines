@@ -116,11 +116,19 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     if (salt.testTarget(saltMaster, 'I@glance:client:enabled')) {
         salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
     }
+    try {
+        result = salt.cmdRun(saltMaster, 'I@keystone:server and *01*', '. /root/keystonercv3; openstack network list --external | grep ID')
+        salt.checkResult(result)
+    } catch (Exception e) {
+        result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest.public_net"]])
+        salt.checkResult(result)
+        salt.fullRefresh(saltMaster, fullnodename)
+        if (salt.testTarget(saltMaster, 'I@neutron:client:enabled')) {
+            salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+        }
+    }
     if (salt.testTarget(saltMaster, 'I@nova:client:enabled')) {
         salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
-    }
-    if (salt.testTarget(saltMaster, 'I@neutron:client:enabled')) {
-        salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
     }
 }
 
