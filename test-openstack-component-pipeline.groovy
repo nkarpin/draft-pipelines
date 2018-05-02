@@ -55,6 +55,7 @@
  *   TEST_PASS_THRESHOLD               Persent of passed tests to consider build successful
  *   SALT_MASTER_CREDENTIALS           Credentials to the Salt API
  *   ARTIFACTORY_CREDENTIALS           Credentials to Artifactory
+ *   USE_RALLY                         Whether to use rally to launch tests
  *
  **/
 
@@ -111,11 +112,10 @@ if (STACK_TYPE != 'heat' ) {
 timeout(time: 6, unit: 'HOURS') {
     node(slave_node) {
 
-        // Use container without rally on periodic pike nightly job,
         // remove when switched to new container
         def use_rally = true
-        if (JOB_NAME == 'oscore-MCP1.1-virtual_mcp11_aio-pike-nightly'){
-            use_rally = false
+        if (common.validInputParam('USE_RALLY')){
+            use_rally = USE_RALLY.toBoolean()
         }
         def project = PROJECT
         // EXTRA_REPO_* parameters are deprecated in favor of BOOTSTRAP_EXTRA_REPO_PARAMS

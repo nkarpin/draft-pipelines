@@ -96,6 +96,12 @@ if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
   extraRepo = ''
 }
 
+// remove when switched to new container
+def use_rally = true
+if (common.validInputParam('USE_RALLY')){
+    use_rally = USE_RALLY.toBoolean()
+}
+
 def installExtraFormula(saltMaster, formula) {
     def result
     result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'pkg.install', "salt-formula-${formula}")
@@ -142,11 +148,12 @@ timeout(time: 6, unit: 'HOURS') {
               [$class: 'StringParameterValue', name: 'TEST_TARGET', value: testTarget],
               [$class: 'StringParameterValue', name: 'TEST_SET', value: 'smoke'],
               [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: testConcurrency],
-              [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''],
+              [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: 'smoke'],
               [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
               [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
               [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
               [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
+              [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: use_rally],
             ])
           }
         }
