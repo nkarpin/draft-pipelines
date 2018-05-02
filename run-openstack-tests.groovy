@@ -113,9 +113,15 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     salt.fullRefresh(saltMaster, "*")
 
     common.infoMsg("Perform client states to create new resources")
-    salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
-    salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
-    salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+    if (salt.testTarget(saltMaster, 'I@glance:client:enabled')) {
+        salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
+    }
+    if (salt.testTarget(saltMaster, 'I@nova:client:enabled')) {
+        salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
+    }
+    if (salt.testTarget(saltMaster, 'I@neutron:client:enabled')) {
+        salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+    }
 }
 
  /**
