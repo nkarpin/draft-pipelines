@@ -52,7 +52,7 @@ node('docker') {
 
         if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
             stage('Upload tests results to Testrail'){
-                def test_suite = TEST_SUITE
+                def test_suite = TEST_SUITE ?: "[${TEST_MILESTONE}_${OPENSTACK_VERSION.toUpperCase()}]Tempest"
 
                 // Docker run fails if TEST_SUITE has whitespaces
                 if (test_suite[0] != "'" && test_suite[-1] != "'"){
