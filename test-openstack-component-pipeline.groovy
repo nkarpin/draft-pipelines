@@ -8,12 +8,9 @@
  *    (or set of all tests).
  *
  * Flow parameters:
- *   EXTRA_REPO                        Deprecated. Repository with additional packages
  *   BOOTSTRAP_EXTRA_REPO_PARAMS       List of extra repos and related parameters injected on salt bootstrap stage:
  *                                     repo 1, repo priority 1, repo pin 1; repo 2, repo priority 2, repo pin 2
  *   REPO_URL                          URL to temporary repository with tested packages
- *   EXTRA_REPO_PIN                    Deprecated. Pin string for extra repo - eg "origin hostname.local"
- *   EXTRA_REPO_PRIORITY               Deprecated. Repo priority
  *   FAIL_ON_TESTS                     Whether to fail build on tests failures or not
  *   FORMULA_PKG_REVISION              Formulas release to deploy with (stable, testing or nightly)
  *   HEAT_STACK_ZONE                   VM availability zone
@@ -118,11 +115,6 @@ timeout(time: 6, unit: 'HOURS') {
             use_rally = USE_RALLY.toBoolean()
         }
         def project = PROJECT
-        // EXTRA_REPO_* parameters are deprecated in favor of BOOTSTRAP_EXTRA_REPO_PARAMS
-        def extra_repo
-        if (common.validInputParam('EXTRA_REPO')) {
-            extra_repo = EXTRA_REPO
-        }
         def run_smoke = true
         if (common.validInputParam('RUN_SMOKE')) {
             run_smoke = RUN_SMOKE.toBoolean()
@@ -183,7 +175,7 @@ timeout(time: 6, unit: 'HOURS') {
                     repo_url = env.REPO_URL ?: env.GERRIT_EVENT_TYPE == 'change-merged' ? env.REPO_URL_MERGED : env.REPO_URL_REVIEW
                 }
                 // currently artifactory CR repositories  aren't signed - related bug PROD-14585
-                extra_repo = "deb [ arch=amd64 trusted=yes ] ${repo_url}"
+                bootstrap_extra_repo_params = "deb [ arch=amd64 trusted=yes ] ${repo_url}, 1200, origin ${repo_url.tokenize('/')[1]}"
                 testrail = false
             } else {
                 if (common.validInputParam('TEST_MILESTONE')) {
@@ -211,25 +203,6 @@ timeout(time: 6, unit: 'HOURS') {
 
             if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
                 bootstrap_extra_repo_params = BOOTSTRAP_EXTRA_REPO_PARAMS
-            }
-            // Setting extra repo is deprecated, BOOTSTRAP_EXTRA_REPO_PARAMS should be used instead
-            if (extra_repo) {
-                // by default pin to fqdn of extra repo host
-                def extra_repo_pin = "origin ${extra_repo.tokenize('/')[1]}"
-                if (common.validInputParam('EXTRA_REPO_PIN')) {
-                    extra_repo_pin = EXTRA_REPO_PIN
-                }
-                def extra_repo_priority = '1200'
-                if (common.validInputParam('EXTRA_REPO_PRIORITY')) {
-                    extra_repo_priority = EXTRA_REPO_PRIORITY
-                }
-
-                def extra_repo_params = ["linux_system_repo: ${extra_repo}",
-                                         "linux_system_repo_priority: ${extra_repo_priority}",
-                                         "linux_system_repo_pin: ${extra_repo_pin}",]
-                for (item in extra_repo_params) {
-                   salt_overrides_list.add(item)
-                }
             }
 
             if (common.validInputParam('FORMULA_PKG_REVISION')) {
