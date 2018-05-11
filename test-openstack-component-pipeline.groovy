@@ -95,7 +95,7 @@ def get_test_pattern(project) {
                        //'barbican': 'barbican_tempest_plugin',
                        'designate': 'designate_tempest_plugin',
                        'glance': 'image',
-                       'heat': 'orchestration',
+                       'heat': 'heat',
                        //'ironic': 'ironic_tempest_plugin',
                        'keystone': 'identity',
                        'nova': 'compute',
