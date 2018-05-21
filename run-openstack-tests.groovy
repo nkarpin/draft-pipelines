@@ -93,7 +93,7 @@ def installExtraFormula(saltMaster, formula) {
  * @param logDir            directory to put tempest log files
  **/
 
-def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir) {
+def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir, concurrency=2) {
     // Set up test_target parameter on node level
     def fullnodename = salt.getMinions(saltMaster, nodeName).get(0)
     def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
@@ -106,7 +106,17 @@ def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir
     for (extraFormula in extraFormulas) {
         installExtraFormula(saltMaster, extraFormula)
     }
-    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': ['service.runtest.tempest'], 'parameters': ['tempest_test_target': testTarget, 'runtest_tempest_cfg_dir': tempestCfgDir, 'runtest_tempest_log_file': "${logDir}/tempest.log"]])
+
+    def classes_to_add = ['service.runtest.tempest']
+    def params_to_update = ['tempest_test_target': testTarget,
+                            'runtest_tempest_cfg_dir': tempestCfgDir,
+                            'runtest_tempest_log_file': "${logDir}/tempest.log",
+                            'runtest_tempest_concurrency': concurrency,]
+
+    if (salt.testTarget(saltMaster, 'I@nova:controller:barbican:enabled:true')){
+        classes_to_add.add('service.runtest.tempest.barbican')
+    }
+    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': classes_to_add, 'parameters': params_to_update])
     salt.checkResult(result)
 
     common.infoMsg('Perform full refresh for all nodes')
@@ -251,7 +261,7 @@ timeout(time: 6, unit: 'HOURS') {
                 }
             }
 
-            configureRuntestNode(saltMaster, 'cfg01*', TEST_TARGET, reports_dir, log_dir)
+            configureRuntestNode(saltMaster, 'cfg01*', TEST_TARGET, reports_dir, log_dir, test_concurrency.toInteger())
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
@@ -306,6 +316,14 @@ timeout(time: 6, unit: 'HOURS') {
 
                     if (salt.testTarget(saltMaster, 'I@runtest:tempest and cfg01*')) {
                         salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest'], true)
+                        if (salt.testTarget(saltMaster, 'I@nova:controller:barbican:enabled:true')){
+                            common.infoMsg('Barbican integration is detected, preparing environment for Barbican tests')
+
+                            salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['salt.minion.cert'], true)
+                            salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['barbican.client'], true)
+                            salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest.test_accounts'], true)
+                            salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest.barbican_sign_image'], true)
+                        }
                     } else {
                         common.warningMsg('Cannot generate tempest config by runtest salt')
                     }
