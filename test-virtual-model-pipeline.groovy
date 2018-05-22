@@ -60,21 +60,21 @@ def stackTestJob
 if (common.validInputParam('STACK_TEST_JOB')) {
   stackTestJob = STACK_TEST_JOB
 } else {
-  stackTestJob = "oscore-tempest-runner"
+  stackTestJob = 'oscore-tempest-runner'
 }
 
 def testConcurrency
 if (common.validInputParam('TEST_CONCURRENCY')) {
   testConcurrency = TEST_CONCURRENCY
 } else {
-  testConcurrency = "2"
+  testConcurrency = '2'
 }
 
 def testConf
 if (common.validInputParam('TEST_CONF')) {
   testConf = TEST_CONF
 } else {
-  testConf = "/home/rally/rally_reports/tempest_generated.conf"
+  testConf = '/home/rally/rally_reports/tempest_generated.conf'
 }
 
 def testTarget
@@ -106,12 +106,12 @@ def installExtraFormula(saltMaster, formula) {
     def result
     result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'pkg.install', "salt-formula-${formula}")
     salt.checkResult(result)
-    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}","/srv/salt/reclass/classes/service/${formula}"])
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}", "/srv/salt/reclass/classes/service/${formula}"])
     salt.checkResult(result)
 }
 
 timeout(time: 6, unit: 'HOURS') {
-    node("oscore-testing") {
+    node('oscore-testing') {
 
       try {
         stage('Deploy cluster') {
@@ -201,7 +201,7 @@ timeout(time: 6, unit: 'HOURS') {
               def minions
               def saltMasterTarget = ['expression': 'cfg01*', 'type': 'compound']
               def result
-              def extraFormulas = ["runtest", "artifactory"]
+              def extraFormulas = ['runtest', 'artifactory']
               def venv = "${env.WORKSPACE}/pepper-venv-${BUILD_NUMBER}"
 
               python.setupPepperVirtualenv(venv, saltMasterUrl, SALT_MASTER_CREDENTIALS)
@@ -212,11 +212,11 @@ timeout(time: 6, unit: 'HOURS') {
 
               minions = salt.getMinions(venv, '*')
               for (minion in minions) {
-                result = salt.runSaltCommand(venv, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${minion}", "classes": ["service.runtest.tempest.artifactory"], "parameters": ["artifactory_user": "${creds.username}", "artifactory_password": "${creds.password.toString()}"]])
+                result = salt.runSaltCommand(venv, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${minion}", 'classes': ['service.runtest.tempest.artifactory'], 'parameters': ['artifactory_user': "${creds.username}", 'artifactory_password': "${creds.password.toString()}"]])
                 salt.checkResult(result)
               }
 
-              salt.fullRefresh(venv, "*")
+              salt.fullRefresh(venv, '*')
 
               if (salt.testTarget(venv, 'I@runtest:artifact_collector')) {
                 salt.enforceState(venv, 'I@runtest:artifact_collector', ['runtest.artifact_collector'], true)

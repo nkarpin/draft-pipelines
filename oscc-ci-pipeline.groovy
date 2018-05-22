@@ -17,25 +17,23 @@
 common = new com.mirantis.mk.Common()
 aptly = new com.mirantis.mk.Aptly()
 
-import java.util.regex.Pattern;
+import java.util.regex.Pattern
 
 @NonCPS
 def getRemoteStorage(String prefix) {
     def regex = Pattern.compile('(^.*):')
     def matcher = regex.matcher(prefix)
-    if(matcher.find()){
+    if (matcher.find()){
         def storageName = matcher.group(1)
         return storageName
-    }else{
-        return ''
     }
+    return ''
 }
 
 def getTestSchemas(testSchemas){
     def schemas = testSchemas.tokenize('|')
     def aio_schemas = []
     def multinode_schemas = []
-    def cluster_branch
     for (schema in schemas){
         if ( schema.tokenize(':')[0] == 'aio' ){
             aio_schemas.add(
@@ -66,7 +64,7 @@ timeout(time: 6, unit: 'HOURS') {
         ]
         def repo = SOURCE_REPO_NAME
         def components = COMPONENTS
-        def prefixes = ['oscc-dev','s3:aptcdn:oscc-dev']
+        def prefixes = ['oscc-dev', 's3:aptcdn:oscc-dev']
         def tmp_repo_node_name = TMP_REPO_NODE_NAME
         def notToPromote
         def notToPromoteMulti
@@ -79,7 +77,6 @@ timeout(time: 6, unit: 'HOURS') {
         def snapshotName = "os-salt-formulas-${ts}-oscc-dev"
         def distribution = "${DISTRIBUTION}-${ts}"
         def storage
-        def testClusterNames
 
         lock('aptly-api') {
 
@@ -134,7 +131,7 @@ timeout(time: 6, unit: 'HOURS') {
                         node('oscore-testing') {
                             testBuildsMulti["${cn}-${br}"] = build job: multinod_job, propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
-                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "testing"],
+                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'testing'],
                                 [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: false],
                                 [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],

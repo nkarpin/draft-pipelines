@@ -8,22 +8,13 @@
  * IMAGE_TAG - Linux distribution to build docker image from
  */
 
-def mkCommon = new com.mirantis.mk.Common()
 def artifactory = new com.mirantis.mcp.MCPArtifactory()
 def git = new com.mirantis.mcp.Git()
 
-def built_image
 def docker_dev_repo = 'docker-dev-local'
 def docker_context = '.'
 def docker_image_name = IMAGE_NAME.tokenize('/').last()
 def project_name_short = 'mcp/' + GIT_URL.tokenize('/').last()
-
-// Guess username for acessing git repo
-def git_user=''
-if (env.GIT_CREDS_ID) {
-    def cred = mkCommon.getCredentials(env.GIT_CREDS_ID, 'key')
-    git_user = "${cred.username}@"
-}
 
 def artifactoryServer = Artifactory.server('mcp-ci')
 
@@ -67,7 +58,7 @@ node('docker') {
             '--no-cache',
             docker_context,
         ]
-        built_image = docker.build(
+        docker.build(
             ( DOCKER_REGISTRY ? "${DOCKER_REGISTRY}/" : '' ) + "${IMAGE_NAME}:${IMAGE_TAG}",
             docker_args.join(' ')
         )

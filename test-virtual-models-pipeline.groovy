@@ -28,8 +28,6 @@
 */
 
 def common = new com.mirantis.mk.Common()
-def aptly = new com.mirantis.mk.Aptly()
-def http = new com.mirantis.mk.Http()
 def gerrit = new com.mirantis.mk.Gerrit()
 
 def checkouted = false
@@ -47,7 +45,6 @@ try {
 }
 
 def gerritUrl
-def gitUrl
 try {
   gerritUrl = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT}"
   gerritUrlAnonymous = "https://${GERRIT_HOST}/${GERRIT_PROJECT}"
@@ -56,34 +53,28 @@ try {
   gerritUrlAnonymous = STACK_RECLASS_ADDRESS
 }
 
-def gerritBranch
-try {
-  gerritBranch = GERRIT_BRANCH
-} catch (MissingPropertyException e) {
-  gerritBranch = STACK_RECLASS_BRANCH
-}
-
 def systestJob = 'oscore-test_virtual_model'
 if (common.validInputParam('SYSTEST_JOB')) {
     systestJob = SYSTEST_JOB
 }
 
-def setGerritBuildString(buildObj, cluster_name){
-    return "* ${cluster_name} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
+def setGerritBuildString(buildObj, clusterName){
+    return "* ${clusterName} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
 }
 
-node("oscore-testing") {
-  stage("checkout") {
-    if(gerritRef != '' && gerritUrl != '') {
-        checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, "HEAD", CREDENTIALS_ID)
-    } else {
-      throw new Exception("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
+node('oscore-testing') {
+  stage('checkout') {
+    if (gerritRef != '' && gerritUrl != '') {
+      checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, 'HEAD', CREDENTIALS_ID)
+    }
+    if (!checkouted){
+      error("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
     }
   }
 
-  if(common.validInputParam('STACK_CLUSTER_NAMES')){
+  if (common.validInputParam('STACK_CLUSTER_NAMES')){
     if (useGerrit){
-      common.infoMsg("STACK_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
+      common.infoMsg('STACK_CLUSTER_NAMES was set and pipeline was triggered from gerrit')
       common.infoMsg("Checking if we have to run any clusters in ${STACK_CLUSTER_NAMES}")
       // TODO: add logic to automatically pick changed mode
     } else {
@@ -103,7 +94,7 @@ node("oscore-testing") {
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: gerritUrlAnonymous],
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: gerritRef],
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
-            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
+            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'nightly'],
             [$class: 'BooleanParameterValue', name: 'RUN_SMOKE', value: true],
             [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
             ]
@@ -128,7 +119,7 @@ node("oscore-testing") {
         }
       }
     }
-  if(success_models){
+  if (success_models){
     common.successMsg(success_models.join('\n'))
   }
   if (failed_models) {

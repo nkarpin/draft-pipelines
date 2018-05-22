@@ -21,11 +21,9 @@
 */
 
 def common = new com.mirantis.mk.Common()
-def aptly = new com.mirantis.mk.Aptly()
-def http = new com.mirantis.mk.Http()
 def gerrit = new com.mirantis.mk.Gerrit()
 
-defcheckouted = false
+def checkouted = false
 
 def testClusterNames
 def messages = ["${env.BUILD_URL}"]
@@ -40,7 +38,6 @@ try {
 }
 
 def gerritUrl
-def gitUrl
 try {
   gerritUrl = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT}"
   gerritUrlAnonymous = "https://${GERRIT_HOST}/${GERRIT_PROJECT}"
@@ -61,24 +58,26 @@ if (common.validInputParam('SYSTEST_JOB_PREFIX')) {
     systestJobPrefix = SYSTEST_JOB_PREFIX
 }
 
-def setGerritBuildString(buildObj, cluster_name){
-    return "* ${cluster_name} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
+def setGerritBuildString(buildObj, clusterName){
+    return "* ${clusterName} ${buildObj.absoluteUrl} : ${buildObj.result} ${buildObj.durationString}"
 }
 
-node("python") {
-  stage("checkout") {
-    if(gerritRef != '' && gerritUrl != '') {
-        checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, "HEAD", CREDENTIALS_ID)
-    } else {
-      throw new Exception("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
+node('python') {
+  stage('checkout') {
+    if (gerritRef != '' && gerritUrl != '') {
+        checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, 'HEAD', CREDENTIALS_ID)
     }
+    if (!checkouted){
+      error("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
+    }
+
   }
 
-  if(common.validInputParam('TEST_CLUSTER_NAMES')){
+  if (common.validInputParam('TEST_CLUSTER_NAMES')){
     def modifiedClusters
     def reclassBumped
     if (useGerrit){
-      common.infoMsg("TEST_CLUSTER_NAMES was set and pipeline was triggered from gerrit")
+      common.infoMsg('TEST_CLUSTER_NAMES was set and pipeline was triggered from gerrit')
       common.infoMsg("Checking if we have to run any clusters in ${TEST_CLUSTER_NAMES}")
       reclassBumped = sh(script: "set +x;git diff-tree --no-commit-id --name-only -r HEAD | grep classes/system | awk -F/ '{print \$2}'", returnStdout: true).asBoolean()
       if (reclassBumped){
@@ -105,8 +104,8 @@ node("python") {
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: "${gerritUrlAnonymous}"],
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "${gerritRef}"],
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: "${cn}"],
-            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
-            [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ""], // Run only smoke tests.
+            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'nightly'],
+            [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''], // Run only smoke tests.
             ]
           }
         }
@@ -129,7 +128,7 @@ node("python") {
       }
     }
   }
-  if(success_models){
+  if (success_models){
     common.successMsg(success_models.join('\n'))
   }
   if (failed_models) {

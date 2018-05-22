@@ -74,8 +74,6 @@ openstack = new com.mirantis.mk.Openstack()
 python = new com.mirantis.mk.Python()
 salt = new com.mirantis.mk.Salt()
 
-def artifactoryServer = Artifactory.server('mcp-ci')
-def artifactoryUrl = artifactoryServer.getUrl()
 def salt_overrides_list = SALT_OVERRIDES.tokenize('\n')
 def build_disabled = 'disable-deploy-test'
 def build_result = 'FAILURE'

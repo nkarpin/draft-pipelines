@@ -80,7 +80,7 @@ def installExtraFormula(saltMaster, formula) {
     def result
     result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'pkg.install', "salt-formula-${formula}")
     salt.checkResult(result)
-    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}","/srv/salt/reclass/classes/service/${formula}"])
+    result = salt.runSaltProcessStep(saltMaster, 'cfg01*', 'file.symlink', ["/usr/share/salt-formulas/reclass/service/${formula}", "/srv/salt/reclass/classes/service/${formula}"])
     salt.checkResult(result)
 }
 
@@ -88,16 +88,16 @@ def installExtraFormula(saltMaster, formula) {
  * Configure the node where runtest state is going to be executed
  *
  * @param nodename          nodename is going to be configured
- * @param test_target       Salt target to run tempest on e.g. gtw*
- * @param tempest_cfg_dir   directory to tempest configuration file
- * @param logdir            directory to put tempest log files
+ * @param testTarget        Salt target to run tempest on e.g. gtw*
+ * @param tempestCfgDir     directory to tempest configuration file
+ * @param logDir            directory to put tempest log files
  **/
 
-def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, logdir) {
+def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir) {
     // Set up test_target parameter on node level
-    def fullnodename = salt.getMinions(saltMaster, nodename).get(0)
+    def fullnodename = salt.getMinions(saltMaster, nodeName).get(0)
     def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
-    def extraFormulas = ["runtest", "artifactory"]
+    def extraFormulas = ['runtest', 'artifactory']
     def result
 
     common.infoMsg("Setting up mandatory runtest parameters in ${fullnodename} on node level")
@@ -106,13 +106,13 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
     for (extraFormula in extraFormulas) {
         installExtraFormula(saltMaster, extraFormula)
     }
-    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
+    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': ['service.runtest.tempest'], 'parameters': ['tempest_test_target': testTarget, 'runtest_tempest_cfg_dir': tempestCfgDir, 'runtest_tempest_log_file': "${logDir}/tempest.log"]])
     salt.checkResult(result)
 
-    common.infoMsg("Perform full refresh for all nodes")
-    salt.fullRefresh(saltMaster, "*")
+    common.infoMsg('Perform full refresh for all nodes')
+    salt.fullRefresh(saltMaster, '*')
 
-    common.infoMsg("Perform client states to create new resources")
+    common.infoMsg('Perform client states to create new resources')
     if (salt.testTarget(saltMaster, 'I@glance:client:enabled')) {
         salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
     }
@@ -120,7 +120,7 @@ def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, log
         result = salt.cmdRun(saltMaster, 'I@keystone:server and *01*', '. /root/keystonercv3; openstack network list --external | grep ID')
         salt.checkResult(result)
     } catch (Exception e) {
-        result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest.public_net"]])
+        result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': ['service.runtest.tempest.public_net']])
         salt.checkResult(result)
         salt.fullRefresh(saltMaster, fullnodename)
         if (salt.testTarget(saltMaster, 'I@neutron:client:enabled')) {
@@ -147,35 +147,35 @@ def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='
                        tempestConfLocalPath='/root/test/tempest_generated.conf') {
     def salt = new com.mirantis.mk.Salt()
     salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
-    salt.cmdRun(master, "${target}", "docker run " +
+    salt.cmdRun(master, "${target}", 'docker run ' +
                                     "-e ARGS=${args} " +
                                     "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
                                     "-v ${localLogDir}:${logDir} " +
-                                    "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
-                                    "-v /tmp/:/tmp/ " +
+                                    '-v /etc/ssl/certs/:/etc/ssl/certs/ ' +
+                                    '-v /tmp/:/tmp/ ' +
                                     "--rm ${dockerImageLink} " +
-                                    "/bin/bash -c \"run-tempest\" ")
+                                    '/bin/bash -c "run-tempest" ')
 }
 
 /** Archive Tempest results in Artifacts
  *
  * @param master              Salt connection.
  * @param target              Target node to install docker pkg
- * @param reports_dir         Source directory to archive
+ * @param reportsDir          Source directory to archive
  */
-def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
+def archiveTestArtifacts(master, target, reportsDir='/root/test', outputFile='test.tar') {
     def salt = new com.mirantis.mk.Salt()
 
     def artifacts_dir = '_artifacts/'
 
-    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
+    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${outputFile} -C ${reportsDir} .")
     sh "mkdir -p ${artifacts_dir}"
 
-    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
-    writeFile file: "${artifacts_dir}${output_file}", text: encoded
+    encoded = salt.cmdRun(master, target, "cat /root/${outputFile}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+    writeFile file: "${artifacts_dir}${outputFile}", text: encoded
 
     // collect artifacts
-    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
+    archiveArtifacts artifacts: "${artifacts_dir}${outputFile}"
 }
 
 // Define global variables

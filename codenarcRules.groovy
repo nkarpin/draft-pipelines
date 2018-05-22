@@ -23,6 +23,8 @@ ruleset {
     exclude 'DuplicateStringLiteral'
     // It is acceptable in jenkins pipelines
     exclude 'DuplicateMapLiteral'
+    // It is acceptable in jenkins pipelines
+    exclude 'DuplicateListLiteral'
   }
 //  Raised a lot of "Compilation failed" warnings
 //  ruleset('rulesets/enhanced.xml')
@@ -87,6 +89,7 @@ ruleset {
     exclude 'UnnecessaryGetter'
     // Not necessarily an issue
     exclude 'UnnecessaryReturnKeyword'
+    exclude 'UnnecessarySetter'
   }
   ruleset('rulesets/unused.xml')
 }
