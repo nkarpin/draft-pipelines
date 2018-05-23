@@ -110,7 +110,7 @@ timeout(time: 6, unit: 'HOURS') {
                         node('oscore-testing') {
                             testBuilds["${cn}-${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
                                 [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: "deb [arch=amd64] http://${tmp_repo_node_name}/oscc-dev ${distribution} ${components},1300,release n=${distribution}"],
-                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'stable'],
+                                [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: 'testing'],
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
