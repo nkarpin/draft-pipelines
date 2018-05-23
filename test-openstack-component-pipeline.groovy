@@ -160,7 +160,7 @@ timeout(time: 6, unit: 'HOURS') {
                 if ((GERRIT_HOST == 'review.fuel-infra.org') && (GERRIT_BRANCH ==~ /mcp\/(newton|ocata)/)){
                     // get project from review.fuel-infra.org project (e.g. nova from openstack/nova)
                     project = GERRIT_PROJECT.tokenize('/')[1]
-                    def cr_prefix = 'CR-${GERRIT_CHANGE_NUMBER}'
+                    def cr_prefix = "CR-${GERRIT_CHANGE_NUMBER}"
                     if (GERRIT_TOPIC ==~ /group\/[A-z0-9-_]+/) {
                         cr_prefix = "GROUP-${GERRIT_TOPIC.tokenize('/')[1]}"
                     }
