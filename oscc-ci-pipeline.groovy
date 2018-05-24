@@ -12,6 +12,8 @@
  * MULTINODE_JOB                Job name to deploy multi-node model
  * TEST_SCHEMAS                 Defines structure to pass model, cluster_name, branch to run tests on it.
  *                              For example 'aio:cluster-name1:branch1,branch2|multinode:cluster-name2:branch1,branch2'
+ * TEST_MILESTONE               MCP version
+ * TESTRAIL                     Whether to upload results to testrail
  * AUTO_PROMOTE                 True/False promote or not
  **/
 common = new com.mirantis.mk.Common()
@@ -77,6 +79,16 @@ timeout(time: 6, unit: 'HOURS') {
         def snapshotName = "os-salt-formulas-${ts}-oscc-dev"
         def distribution = "${DISTRIBUTION}-${ts}"
         def storage
+        def testrail = true
+        def test_milestone = ''
+
+        if (common.validInputParam('TEST_MILESTONE')) {
+            test_milestone = TEST_MILESTONE
+        }
+
+        if (common.validInputParam('TESTRAIL')) {
+            testrail = TESTRAIL.toBoolean()
+        }
 
         lock('aptly-api') {
 
@@ -105,7 +117,6 @@ timeout(time: 6, unit: 'HOURS') {
                 for (branch in schema['branches']){
                     def cn = schema['cluster_name']
                     def release = branch.tokenize('/')[1]
-
                     deploy_release["Deploy ${cn} ${release}"] = {
                         node('oscore-testing') {
                             testBuilds["${cn}-${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
@@ -114,6 +125,8 @@ timeout(time: 6, unit: 'HOURS') {
                                 [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: cn],
                                 [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: STACK_DELETE.toBoolean()],
                                 [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "stable/${release}"],
+                                [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: testrail],
+                                [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
                             ]
                         }
                     }
