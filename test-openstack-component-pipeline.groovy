@@ -122,6 +122,16 @@ timeout(time: 6, unit: 'HOURS') {
         def test_concurrency = '2'
         def test_pattern = ''
         def stack_deploy_job = "deploy-${STACK_TYPE}-${TEST_MODEL}"
+        // Different test models could have different cluster configurations, e.g. mcp-virtual-aio has
+        // next clusters:
+        // - virtual-mcp11-aio
+        // - virtual-mcp11-aio-barbican etc.
+        // and related deploy job can deploy different clusters, test_cluster_model is needed
+        // to provide cluster description for test runner and results processing job
+        def test_cluster_model = TEST_MODEL
+        if (common.validInputParam('STACK_CLUSTER_NAME')) {
+            test_cluster_model = STACK_CLUSTER_NAME
+        }
         def deployBuild
         def salt_master_url
         def stack_name
@@ -314,7 +324,7 @@ timeout(time: 6, unit: 'HOURS') {
                         [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: test_concurrency],
                         [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: test_pattern],
                         [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
-                        [$class: 'StringParameterValue', name: 'TEST_MODEL', value: TEST_MODEL],
+                        [$class: 'StringParameterValue', name: 'TEST_MODEL', value: test_cluster_model],
                         [$class: 'StringParameterValue', name: 'OPENSTACK_VERSION', value: OPENSTACK_VERSION],
                         [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: testrail.toBoolean()],
                         [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: use_pepper],
