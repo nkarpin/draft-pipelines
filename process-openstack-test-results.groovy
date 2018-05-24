@@ -83,7 +83,12 @@ node('docker') {
 
             def failed = res.failures.toInteger()
             def tests = res.tests.toInteger()
-            def skipped = res.skipped.toInteger()
+            def skipped
+            if (res.get('skipped')) {
+                skipped = res.skipped.toInteger()
+            } else {
+                skipped = res.skips.toInteger()
+            }
             def passed = tests - failed - skipped
 
             def pr = (passed / (tests - skipped)) * 100
@@ -91,7 +96,7 @@ node('docker') {
             println("""\
                     Failed:  ${res.failures}
                     Errors:  ${res.errors}
-                    Skipped: ${res.skipped}
+                    Skipped: ${skipped}
                     Tests:   ${res.tests}
                     TESTS PASS RATE: ${pr}%
                     """)
