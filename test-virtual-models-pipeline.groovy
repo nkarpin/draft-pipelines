@@ -28,9 +28,9 @@
 */
 
 def common = new com.mirantis.mk.Common()
-def gerrit = new com.mirantis.mk.Gerrit()
+//def gerrit = new com.mirantis.mk.Gerrit()
 
-def checkouted = false
+//def checkouted = false
 
 def testClusterNames
 def messages = ["${env.BUILD_URL}"]
@@ -44,12 +44,12 @@ try {
   gerritRef = STACK_RECLASS_BRANCH
 }
 
-def gerritUrl
+// def gerritUrl
 try {
-  gerritUrl = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT}"
+//  gerritUrl = "${GERRIT_SCHEME}://${GERRIT_NAME}@${GERRIT_HOST}:${GERRIT_PORT}/${GERRIT_PROJECT}"
   gerritUrlAnonymous = "https://${GERRIT_HOST}/${GERRIT_PROJECT}"
 } catch (MissingPropertyException e) {
-  gerritUrl = STACK_RECLASS_ADDRESS
+//  gerritUrl = STACK_RECLASS_ADDRESS
   gerritUrlAnonymous = STACK_RECLASS_ADDRESS
 }
 
@@ -63,14 +63,16 @@ def setGerritBuildString(buildObj, clusterName){
 }
 
 node('oscore-testing') {
-  stage('checkout') {
-    if (gerritRef != '' && gerritUrl != '') {
-      checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, 'HEAD', CREDENTIALS_ID)
-    }
-    if (!checkouted){
-      error("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
-    }
-  }
+
+  // Currently the pipeline isn't used of per-commit testing only for periodic jobs
+  // stage('checkout') {
+  //   if (gerritRef != '' && gerritUrl != '') {
+  //     checkouted = gerrit.gerritPatchsetCheckout(gerritUrl, gerritRef, 'HEAD', CREDENTIALS_ID)
+  //   }
+  //   if (!checkouted){
+  //     error("Cannot checkout gerrit: ${gerritUrl} branch: ${gerritRef} failed")
+  //   }
+  // }
 
   if (common.validInputParam('STACK_CLUSTER_NAMES')){
     if (useGerrit){
