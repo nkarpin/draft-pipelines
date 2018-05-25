@@ -182,8 +182,16 @@ timeout(time: 6, unit: 'HOURS') {
                     pkgReviewNameSpace = "binary-dev-local/pkg-review/${GERRIT_CHANGE_NUMBER}"
                     repo_url = env.REPO_URL ?: env.GERRIT_EVENT_TYPE == 'change-merged' ? env.REPO_URL_MERGED : env.REPO_URL_REVIEW
                 }
-                // currently artifactory CR repositories  aren't signed - related bug PROD-14585
-                bootstrap_extra_repo_params = "deb [ arch=amd64 trusted=yes ] ${repo_url}, 1200, origin ${repo_url.tokenize('/')[1]}"
+                // Since Queens mirror.mirantis.com is used as base mirror for Openstack packages
+                // however for per-commit package tests mirror.fuel-infra.org should be injected to have always fresh packages,
+                // because mirror.mirantis.com is synced on daily basis only.
+                // TODO: When PROD-20563 is fixed, trusted=yes can be removed.
+                if (GERRIT_BRANCH ==~ /mcp\/(ocata|pike)/){
+                    bootstrap_extra_repo_params = "deb [ arch=amd64 trusted=yes ] ${repo_url}, 1200, origin ${repo_url.tokenize('/')[1]}"
+                } else {
+                    def openstack_repo = "http://mirror.fuel-infra.org/mcp-repos/${OPENSTACK_VERSION}/xenial/ ${OPENSTACK_VERSION} main"
+                    bootstrap_extra_repo_params = "deb [ arch=amd64 trusted=yes ] ${openstack_repo}, 1150, origin ${openstack_repo.tokenize('/')[1]}; deb [ arch=amd64 trusted=yes ] ${repo_url}, 1200, origin ${repo_url.tokenize('/')[1]}"
+                }
                 testrail = false
             } else {
                 if (common.validInputParam('TEST_MILESTONE')) {
