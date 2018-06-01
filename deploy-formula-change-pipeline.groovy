@@ -124,7 +124,7 @@ if (common.validInputParam('SOURCES')) {
     switch (GERRIT_PROJECT.tokenize('/').last()){
         case ~/manila/:
             stack_cluster_name = 'virtual-mcp11-aio-manila'
-            openstack_releases = ['pike']
+            openstack_releases = ['pike', 'queens']
             break
         case ~/aodh|ceilometer|panko|gnocchi/:
             stack_cluster_name = 'virtual-mcp11-aio-telemetry'
@@ -133,6 +133,10 @@ if (common.validInputParam('SOURCES')) {
         case ~/ironic|baremetal-simulator/:
             stack_cluster_name = 'virtual-mcp11-aio-ironic'
             openstack_releases = ['pike']
+            break
+        case ~/barbican|dogtag/:
+            stack_cluster_name = 'virtual-mcp11-aio-barbican'
+            openstack_releases = ['pike', 'queens']
             break
     }
 } else {
