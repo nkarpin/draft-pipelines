@@ -84,6 +84,10 @@ def installExtraFormula(saltMaster, formula) {
     salt.checkResult(result)
 }
 
+def getPillarValues(saltMaster, target, pillar) {
+    return salt.getReturnValues(salt.getPillar(saltMaster, target, pillar))
+}
+
 /**
  * Configure the node where runtest state is going to be executed
  *
@@ -96,9 +100,11 @@ def installExtraFormula(saltMaster, formula) {
 def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir, concurrency=2) {
     // Set up test_target parameter on node level
     def fullnodename = salt.getMinions(saltMaster, nodeName).get(0)
-    def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
+    def saltMasterExpression = 'I@salt:master'
+    def saltMasterTarget = ['expression': saltMasterExpression, 'type': 'compound']
     def extraFormulas = ['runtest', 'artifactory']
     def result
+    def conf_public_net = false
 
     common.infoMsg("Setting up mandatory runtest parameters in ${fullnodename} on node level")
 
@@ -116,6 +122,22 @@ def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir
     if (salt.testTarget(saltMaster, 'I@nova:controller:barbican:enabled:true')){
         classes_to_add.add('service.runtest.tempest.barbican')
     }
+
+    try {
+        result = salt.cmdRun(saltMaster, 'I@keystone:server and *01*', '. /root/keystonercv3; openstack network list --external | grep ID')
+        salt.checkResult(result)
+    } catch (Exception e) {
+        conf_public_net = true
+        classes_to_add.add('service.runtest.tempest.public_net')
+        if (!getPillarValues(saltMaster, saltMasterExpression, '_param:openstack_public_neutron_subnet_gateway')) {
+            if (getPillarValues(saltMaster, saltMasterExpression, '_param:openstack_gateway_node01_external_address')) {
+                params_to_update['openstack_public_neutron_subnet_gateway'] = '${_param:openstack_gateway_node01_external_address}'
+            } else {
+                common.warningMsg('Cannot determine neutron public network gateway')
+            }
+        }
+    }
+
     result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': classes_to_add, 'parameters': params_to_update])
     salt.checkResult(result)
 
@@ -123,19 +145,12 @@ def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir
     salt.fullRefresh(saltMaster, '*')
 
     common.infoMsg('Perform client states to create new resources')
+
+    if (salt.testTarget(saltMaster, 'I@neutron:client:enabled') && conf_public_net) {
+        salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+    }
     if (salt.testTarget(saltMaster, 'I@glance:client:enabled')) {
         salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
-    }
-    try {
-        result = salt.cmdRun(saltMaster, 'I@keystone:server and *01*', '. /root/keystonercv3; openstack network list --external | grep ID')
-        salt.checkResult(result)
-    } catch (Exception e) {
-        result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ['name': "${fullnodename}", 'classes': ['service.runtest.tempest.public_net']])
-        salt.checkResult(result)
-        salt.fullRefresh(saltMaster, fullnodename)
-        if (salt.testTarget(saltMaster, 'I@neutron:client:enabled')) {
-            salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
-        }
     }
     if (salt.testTarget(saltMaster, 'I@nova:client:enabled')) {
         salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
