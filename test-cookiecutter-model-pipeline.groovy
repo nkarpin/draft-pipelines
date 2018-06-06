@@ -108,7 +108,7 @@ timeout(time: 6, unit: 'HOURS') {
           if (checkouted && fileExists("${cookiecutterTemplateContextFilePath}")){
               cookiecutterBaseContext = readYaml(file: 'cookiecutter-templates/contexts/oscore/base.yml')
               def cookiecutterContextFragment = readYaml(file: "${cookiecutterTemplateContextFilePath}")
-              merge(cookiecutterContext, cookiecutterContextFragment, cookiecutterExtraContext)
+              merge(cookiecutterContext, cookiecutterBaseContext, cookiecutterContextFragment, cookiecutterExtraContext)
           } else {
               error("Cannot checkout gerrit or context file doesn't exists.")
           }
