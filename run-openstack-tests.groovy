@@ -144,6 +144,8 @@ def configureRuntestNode(saltMaster, nodeName, testTarget, tempestCfgDir, logDir
     common.infoMsg('Perform full refresh for all nodes')
     salt.fullRefresh(saltMaster, '*')
 
+    salt.enforceState(saltMaster, 'I@salt:master', ['salt.minion'], true, false, null, false, 60, 2)
+
     common.infoMsg('Perform client states to create new resources')
 
     if (salt.testTarget(saltMaster, 'I@neutron:client:enabled') && conf_public_net) {
@@ -334,7 +336,6 @@ timeout(time: 6, unit: 'HOURS') {
                         if (salt.testTarget(saltMaster, 'I@nova:controller:barbican:enabled:true')){
                             common.infoMsg('Barbican integration is detected, preparing environment for Barbican tests')
 
-                            salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['salt.minion.cert'], true)
                             salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['barbican.client'], true)
                             salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest.test_accounts'], true)
                             salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest.barbican_sign_image'], true)
