@@ -82,6 +82,9 @@ timeout(time: 6, unit: 'HOURS') {
           setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_url', 'https://gerrit.mcp.mirantis.net/mk/cookiecutter-templates')
           setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_branch', 'master')
 
+          // Make sure password is consistent with static models
+          cookiecutterExtraContext['default_context']['salt_api_password'] = 'hovno12345!'
+
           cookiecutterTemplateURL = cookiecutterExtraContext.default_context.cookiecutter_template_url
           cookiecutterTemplateBranch = cookiecutterExtraContext.default_context.cookiecutter_template_branch
 
@@ -119,6 +122,7 @@ timeout(time: 6, unit: 'HOURS') {
             [$class: 'StringParameterValue', name: 'STACK_NAME', value: stackName],
             [$class: 'TextParameterValue', name: 'COOKIECUTTER_TEMPLATE_CONTEXT', value: toJson(templateContext)],
             [$class: 'BooleanParameterValue', name: 'DELETE_STACK', value: false],
+            [$class: 'BooleanParameterValue', name: 'RUN_TESTS', value: false],
             ]
           )
 
@@ -138,6 +142,10 @@ timeout(time: 6, unit: 'HOURS') {
           saltMasterUrl = "http://${saltMasterHost}:6969"
           common.infoMsg("Salt API is accessible via ${saltMasterUrl}")
           currentBuild.description = "${stackName} ${saltMasterHost}"
+
+          if (deployBuild.result != 'SUCCESS'){
+            error("Deployment failed, please check ${deployBuild.absoluteUrl}")
+          }
         }
 /**
         // Perform smoke tests to fail early
