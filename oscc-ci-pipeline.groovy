@@ -117,6 +117,9 @@ timeout(time: 6, unit: 'HOURS') {
                 for (branch in schema['branches']){
                     def cn = schema['cluster_name']
                     def release = branch.tokenize('/')[1]
+                    if (release == 'ocata'){
+                        testrail = false
+                    }
                     deploy_release["Deploy ${cn} ${release}"] = {
                         node('oscore-testing') {
                             testBuilds["${cn}-${release}"] = build job: "${DEPLOY_JOB_NAME}-${release}", propagate: false, parameters: [
