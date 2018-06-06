@@ -50,8 +50,8 @@ def openstackEnvironment = 'devcloud'
 
 def stackCleanupJob = 'delete-heat-stack-for-mcp-env'
 def cookiecutterTemplateContextFile = COOKIECUTTER_TEMPLATE_CONTEXT_FILE
-def cookiecutterExtraContext
 def cookiecutterTemplateCredentialsID = CREDENTIALS_ID
+def cookiecutterContext = [:]
 
 def installExtraFormula(saltMaster, formula) {
     def result
@@ -67,36 +67,48 @@ def setContextDefault(contextObject, itemName, itemValue, contextName='default_c
     }
 }
 
+@SuppressWarnings ('ClosureAsLastMethodParameter')
+def merge(Map onto, Map... overrides){
+    if (!overrides){
+        return onto
+    }
+    else if (overrides.length == 1) {
+        overrides[0]?.each { k, v ->
+            if (v in Map && onto[k] in Map){
+                merge((Map) onto[k], (Map) v)
+            } else {
+                onto[k] = v
+            }
+        }
+        return onto
+    }
+    return overrides.inject(onto, { acc, override -> merge(acc, override ?: [:]) })
+}
+
 timeout(time: 6, unit: 'HOURS') {
     node('oscore-testing') {
 
       try {
         stage('Prepare context'){
-          def cookiecutterTemplateURL
-          def cookiecutterTemplateBranch
-          cookiecutterExtraContext = readYaml text: COOKIECUTTER_EXTRA_CONTEXT
-          if (!cookiecutterExtraContext){
-            cookiecutterExtraContext = [:]
-            cookiecutterExtraContext['default_context'] = [:]
-          }
-          setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_url', 'https://gerrit.mcp.mirantis.net/mk/cookiecutter-templates')
+          def cookiecutterExtraContext = readYaml text: COOKIECUTTER_EXTRA_CONTEXT
+
+          setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_url', 'https://gerrit.mcp.mirantis.net/mk/cookiecutter-ttemplates')
           setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_branch', 'master')
 
-          // Make sure password is consistent with static models
-          cookiecutterExtraContext['default_context']['salt_api_password'] = 'hovno12345!'
-
-          cookiecutterTemplateURL = cookiecutterExtraContext.default_context.cookiecutter_template_url
-          cookiecutterTemplateBranch = cookiecutterExtraContext.default_context.cookiecutter_template_branch
+          def cookiecutterTemplateURL = cookiecutterExtraContext.default_context.cookiecutter_template_url
+          def cookiecutterTemplateBranch = cookiecutterExtraContext.default_context.cookiecutter_template_branch
 
           def checkouted = false
-          def cookiecutterTemplateContextFilePath = "cookiecutter-templates/contexts/${cookiecutterTemplateContextFile}.yml"
+          def cookiecutterTemplateContextFilePath = "cookiecutter-templates/contexts/oscore/${cookiecutterTemplateContextFile}.yml"
           if (cookiecutterTemplateBranch.startsWith('ref')){
               checkouted = gerrit.gerritPatchsetCheckout(cookiecutterTemplateURL, cookiecutterTemplateBranch, 'HEAD', cookiecutterTemplateCredentialsID)
           } else {
               checkouted = git.checkoutGitRepository('cookiecutter-templates', cookiecutterTemplateURL, cookiecutterTemplateBranch, cookiecutterTemplateCredentialsID)
           }
           if (checkouted && fileExists("${cookiecutterTemplateContextFilePath}")){
-              templateContext = readYaml(file: "${cookiecutterTemplateContextFilePath}")
+              cookiecutterBaseContext = readYaml(file: 'cookiecutter-templates/contexts/oscore/base.yml')
+              def cookiecutterContextFragment = readYaml(file: "${cookiecutterTemplateContextFilePath}")
+              merge(cookiecutterContext, cookiecutterContextFragment, cookiecutterExtraContext)
           } else {
               error("Cannot checkout gerrit or context file doesn't exists.")
           }
@@ -120,7 +132,7 @@ timeout(time: 6, unit: 'HOURS') {
             [$class: 'StringParameterValue', name: 'OS_AZ', value: HEAT_STACK_ZONE],
             [$class: 'StringParameterValue', name: 'OS_PROJECT_NAME', value: OPENSTACK_API_PROJECT],
             [$class: 'StringParameterValue', name: 'STACK_NAME', value: stackName],
-            [$class: 'TextParameterValue', name: 'COOKIECUTTER_TEMPLATE_CONTEXT', value: toJson(templateContext)],
+            [$class: 'TextParameterValue', name: 'COOKIECUTTER_TEMPLATE_CONTEXT', value: toJson(cookiecutterContext)],
             [$class: 'BooleanParameterValue', name: 'DELETE_STACK', value: false],
             [$class: 'BooleanParameterValue', name: 'RUN_TESTS', value: false],
             ]
