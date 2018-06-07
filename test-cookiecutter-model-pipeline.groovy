@@ -37,15 +37,15 @@ def saltMasterUrl
 
 def  deployJobName = 'create-mcp-env'
 
-//def runSmoke = false
-//if (common.validInputParam('RUN_SMOKE')) {
-//  runSmoke = RUN_SMOKE.toBoolean()
-//}
+def runSmoke = false
+if (common.validInputParam('RUN_SMOKE')) {
+  runSmoke = RUN_SMOKE.toBoolean()
+}
 
-//def stackTestJob = 'oscore-tempest-runner'
-//def testConcurrency = '2'
-//def testConf = '/home/rally/rally_reports/tempest_generated.conf'
-//def testTarget = 'gtw01'
+def stackTestJob = 'oscore-tempest-runner'
+def testConcurrency = '2'
+def testConf = '/home/rally/rally_reports/tempest_generated.conf'
+def testTarget = 'gtw01'
 def openstackEnvironment = 'devcloud'
 
 def stackCleanupJob = 'delete-heat-stack-for-mcp-env'
@@ -123,6 +123,7 @@ timeout(time: 6, unit: 'HOURS') {
               stackName = "jenkins-${JOB_NAME}-${BUILD_NUMBER}"
             }
           }
+          currentBuild.description = "${stackName}"
 
           deployBuild = build( job: "${deployJobName}", propagate: false, parameters: [
             [$class: 'StringParameterValue', name: 'STACK_INSTALL', value: STACK_INSTALL],
@@ -159,7 +160,7 @@ timeout(time: 6, unit: 'HOURS') {
             error("Deployment failed, please check ${deployBuild.absoluteUrl}")
           }
         }
-/**
+
         // Perform smoke tests to fail early
         stage('Run tests'){
           if (runSmoke){
@@ -173,13 +174,14 @@ timeout(time: 6, unit: 'HOURS') {
               [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: 'smoke'],
               [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
               [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
-              [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
+              // We expect to fail 3 tests from 90. As there is no connectivity from container to public
+              // network yet.
+              [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '96'],
               [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
-              [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: use_rally],
+              [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: false],
             ])
           }
         }
-**/
 
       } catch (Exception e) {
         currentBuild.result = 'FAILURE'
