@@ -92,7 +92,7 @@ timeout(time: 6, unit: 'HOURS') {
         stage('Prepare context'){
           def cookiecutterExtraContext = readYaml text: COOKIECUTTER_EXTRA_CONTEXT
 
-          setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_url', 'https://gerrit.mcp.mirantis.net/mk/cookiecutter-ttemplates')
+          setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_url', 'https://gerrit.mcp.mirantis.net/mk/cookiecutter-templates')
           setContextDefault(cookiecutterExtraContext, 'cookiecutter_template_branch', 'master')
 
           def cookiecutterTemplateURL = cookiecutterExtraContext.default_context.cookiecutter_template_url
