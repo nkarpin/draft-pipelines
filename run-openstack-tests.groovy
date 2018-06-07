@@ -356,7 +356,7 @@ timeout(time: 6, unit: 'HOURS') {
                     } else {
                         // Remove this when job TEST_IMAGE is switched to new docker imge
                         if (!common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
-                            TEST_IMAGE = 'docker-prod-virtual.docker.mirantis.net/mirantis/cicd/ci-tempest'
+                            TEST_IMAGE = 'docker-prod-virtual.docker.mirantis.net/mirantis/cicd/ci-tempest:pike'
                         }
                         runTempestTestsNew(saltMaster, TEST_TARGET, TEST_IMAGE, args)
                     }
