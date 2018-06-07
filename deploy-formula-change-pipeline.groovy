@@ -128,11 +128,11 @@ if (common.validInputParam('SOURCES')) {
             break
         case ~/aodh|ceilometer|panko|gnocchi/:
             stack_cluster_name = 'virtual-mcp11-aio-telemetry'
-            openstack_releases = ['pike']
+            openstack_releases = ['pike', 'queens']
             break
         case ~/ironic|baremetal-simulator/:
             stack_cluster_name = 'virtual-mcp11-aio-ironic'
-            openstack_releases = ['pike']
+            openstack_releases = ['pike', 'queens']
             break
         case ~/barbican|dogtag/:
             stack_cluster_name = 'virtual-mcp11-aio-barbican'
